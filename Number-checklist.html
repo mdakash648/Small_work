@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Checklist</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: #2e3248; --accent: #6c63ff; --accent2: #a78bfa;
+    --green: #22d3a0; --text: #e2e8f0; --muted: #7e8aaa;
+    --done-bg: #1a1d27; --done-text: #3d4260; --radius: 10px;
+    --warn: #f59e0b;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; padding: 32px 16px 80px; }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  .header { margin-bottom: 28px; }
+  .header h1 { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent2); letter-spacing: -0.5px; margin-bottom: 4px; }
+  .header p { color: var(--muted); font-size: 0.85rem; }
+
+  .input-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .input-card label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .input-row { display: flex; gap: 10px; }
+  .input-row textarea { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; resize: vertical; min-height: 90px; outline: none; transition: border-color 0.2s; line-height: 1.7; }
+  .input-row textarea:focus { border-color: var(--accent); }
+  .input-row textarea::placeholder { color: var(--muted); }
+  .btn-load { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 0 18px; font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; align-self: flex-end; height: 42px; white-space: nowrap; }
+  .btn-load:hover { background: #5a52e0; }
+  .btn-load:active { transform: scale(0.97); }
+
+  /* ── Pause Rules Card ── */
+  .pause-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; }
+  .pause-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; cursor: pointer; user-select: none; }
+  .pause-card-header .sec-label { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+  .pause-card-header .sec-label .badge { background: rgba(108,99,255,0.18); color: var(--accent2); border-radius: 99px; padding: 2px 8px; font-size: 0.7rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .toggle-arrow { color: var(--muted); font-size: 0.75rem; transition: transform 0.2s; }
+  .toggle-arrow.open { transform: rotate(180deg); }
+  .pause-body { display: none; }
+  .pause-body.open { display: block; }
+
+  .rules-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .rule-row { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+  .rule-char { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 700; color: var(--warn); min-width: 28px; text-align: center; }
+  .rule-label { font-size: 0.78rem; color: var(--muted); flex: 1; }
+  .rule-sec-wrap { display: flex; align-items: center; gap: 6px; }
+  .rule-sec-wrap input[type=number] { width: 54px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 600; padding: 4px 8px; outline: none; text-align: center; }
+  .rule-sec-wrap input[type=number]:focus { border-color: var(--accent); }
+  .rule-sec-label { font-size: 0.75rem; color: var(--muted); }
+  .btn-del-rule { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 2px 6px; border-radius: 5px; transition: color 0.2s, background 0.2s; flex-shrink: 0; }
+  .btn-del-rule:hover { color: #f87171; background: rgba(248,113,113,0.1); }
+
+  .add-rule-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .add-rule-row input[type=text] { width: 56px; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; color: var(--warn); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; padding: 7px 10px; outline: none; text-align: center; }
+  .add-rule-row input[type=text]:focus { border-color: var(--warn); }
+  .add-rule-row input[type=number] { width: 64px; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; padding: 7px 10px; outline: none; text-align: center; }
+  .add-rule-row input[type=number]:focus { border-color: var(--accent); }
+  .add-rule-row .hint { font-size: 0.75rem; color: var(--muted); }
+  .btn-add-rule { background: var(--surface2); border: 1px solid var(--border); color: var(--accent2); border-radius: 7px; padding: 7px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .btn-add-rule:hover { border-color: var(--accent); background: rgba(108,99,255,0.12); }
+
+  /* ── Speech Controls ── */
+  .speech-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .speech-card .label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .speed-control { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 180px; }
+  .speed-control input[type=range] { flex: 1; height: 4px; accent-color: var(--accent); cursor: pointer; }
+  .speed-val { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700; color: var(--accent2); min-width: 34px; text-align: right; }
+  .speech-btns { display: flex; gap: 8px; margin-left: auto; }
+  .btn-speech { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+  .btn-speech:hover { border-color: var(--accent); color: var(--accent2); }
+  .btn-speech.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-speech.stop-btn:hover { border-color: #f87171; color: #f87171; }
+
+  .speaking-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 600; color: var(--green); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0; transition: opacity 0.3s; }
+  .speaking-badge.show { opacity: 1; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.7); } }
+
+  /* pause indicator badge */
+  .pause-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 600; color: var(--warn); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0; transition: opacity 0.3s; }
+  .pause-badge.show { opacity: 1; }
+  .pause-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); animation: blink 0.6s infinite; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+
+  .list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 0 4px; }
+  .list-header .count { font-size: 0.78rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .btn-clear-done { background: none; border: none; color: var(--muted); font-size: 0.75rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: color 0.2s, background 0.2s; }
+  .btn-clear-done:hover { color: #f87171; background: rgba(248,113,113,0.08); }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+
+  .item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; display: flex; align-items: center; gap: 14px; transition: all 0.3s ease; cursor: pointer; position: relative; }
+  .item:hover { border-color: var(--accent); background: var(--surface2); }
+  .item.speaking-item { border-color: var(--green); background: rgba(34,211,160,0.06); box-shadow: 0 0 0 1px rgba(34,211,160,0.2); }
+  .item.done { background: var(--done-bg); border-color: #1e2235; opacity: 0.55; }
+  .item.done:hover { border-color: var(--border); opacity: 0.7; }
+
+  .check-wrap { width: 20px; height: 20px; flex-shrink: 0; position: relative; }
+  .check-wrap input[type=checkbox] { opacity: 0; position: absolute; width: 0; height: 0; }
+  .checkmark { width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 5px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; background: transparent; }
+  .item:hover .checkmark { border-color: var(--accent); }
+  .check-wrap input:checked ~ .checkmark { background: var(--accent); border-color: var(--accent); }
+  .check-wrap input:checked ~ .checkmark::after { content: ''; display: block; width: 5px; height: 9px; border: 2px solid #fff; border-top: none; border-left: none; transform: rotate(45deg) translate(-1px,-1px); }
+
+  .num-text { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 600; color: var(--text); letter-spacing: 0.04em; flex: 1; transition: all 0.25s; user-select: none; }
+  .item.done .num-text { text-decoration: line-through; color: var(--done-text); text-decoration-thickness: 2px; }
+  .item-index { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); min-width: 24px; text-align: right; flex-shrink: 0; }
+  .speak-one { background: none; border: 1px solid transparent; border-radius: 6px; color: var(--muted); padding: 4px 8px; font-size: 0.7rem; cursor: pointer; transition: all 0.2s; opacity: 0; flex-shrink: 0; }
+  .item:hover .speak-one { opacity: 1; }
+  .speak-one:hover { border-color: var(--green); color: var(--green); }
+
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+  .empty-state .big { font-size: 2.5rem; margin-bottom: 12px; }
+  .empty-state p { font-size: 0.88rem; }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 99px; margin-bottom: 20px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 99px; transition: width 0.4s ease; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>// Number Checklist</h1>
+    <p>Paste comma-separated numbers, check them off, or auto-read aloud.</p>
+  </div>
+
+  <!-- Input -->
+  <div class="input-card">
+    <label>Paste Numbers (comma-separated)</label>
+    <div class="input-row">
+      <textarea id="inputArea" placeholder="1234-2773-7373-9393-6267,5678-1234-4567-8901-2345,9999-0000-1111-2222-3333"></textarea>
+      <button class="btn-load" onclick="loadNumbers()">Load ↓</button>
+    </div>
+  </div>
+
+  <!-- Pause Rules -->
+  <div class="pause-card">
+    <div class="pause-card-header" onclick="togglePausePanel()">
+      <span class="sec-label">
+        ⏸ Pause Rules
+        <span class="badge" id="ruleCountBadge">1 rule</span>
+      </span>
+      <span class="toggle-arrow" id="toggleArrow">▼</span>
+    </div>
+    <div class="pause-body" id="pauseBody">
+      <div class="rules-list" id="rulesList"></div>
+      <div class="add-rule-row">
+        <span class="hint">Char:</span>
+        <input type="text" id="newChar" maxlength="3" placeholder="/" style="ime-mode:disabled">
+        <span class="hint">Pause:</span>
+        <input type="number" id="newSec" value="1" min="0.1" max="10" step="0.1">
+        <span class="hint">sec</span>
+        <button class="btn-add-rule" onclick="addRule()">+ Add Rule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Speech Controls -->
+  <div class="speech-card">
+    <div><div class="label">Auto Speech</div></div>
+    <div class="speed-control">
+      <span class="label">Speed</span>
+      <input type="range" id="speedRange" min="0.5" max="2" step="0.1" value="1" oninput="updateSpeed()">
+      <span class="speed-val" id="speedVal">1.0×</span>
+    </div>
+    <span class="speaking-badge" id="speakBadge"><span class="dot"></span> Speaking</span>
+    <span class="pause-badge" id="pauseBadge"><span class="pause-dot"></span> Paused</span>
+    <div class="speech-btns">
+      <button class="btn-speech" id="playBtn" onclick="startSpeech()">▶ Play All</button>
+      <button class="btn-speech stop-btn" onclick="stopSpeech()">■ Stop</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+  <!-- List -->
+  <div class="list-header">
+    <span class="count" id="countLabel">0 items</span>
+    <button class="btn-clear-done" onclick="clearDone()">Clear done</button>
+  </div>
+  <div class="list" id="numList">
+    <div class="empty-state">
+      <div class="big">🔢</div>
+      <p>Paste numbers above and click <strong>Load</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────
+  let items = [];
+  let speechIdx = -1;
+  let isSpeaking = false;
+  let stopRequested = false;
+
+  // Default pause rules: char → seconds
+  let pauseRules = [
+    { char: '-', sec: 1 }
+  ];
+
+  // ── Pause Panel ────────────────────────────────────
+  function togglePausePanel() {
+    const body = document.getElementById('pauseBody');
+    const arrow = document.getElementById('toggleArrow');
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+  }
+
+  function renderRules() {
+    const list = document.getElementById('rulesList');
+    const badge = document.getElementById('ruleCountBadge');
+    badge.textContent = pauseRules.length + (pauseRules.length === 1 ? ' rule' : ' rules');
+    list.innerHTML = pauseRules.map((r, i) => `
+      <div class="rule-row">
+        <span class="rule-char">${escHtml(r.char)}</span>
+        <span class="rule-label">pause when this character appears</span>
+        <div class="rule-sec-wrap">
+          <input type="number" value="${r.sec}" min="0.1" max="10" step="0.1"
+            onchange="updateRuleSec(${i}, this.value)">
+          <span class="rule-sec-label">sec</span>
+        </div>
+        <button class="btn-del-rule" onclick="deleteRule(${i})" title="Remove rule">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function updateRuleSec(i, val) {
+    pauseRules[i].sec = Math.max(0.1, parseFloat(val) || 1);
+    renderRules();
+  }
+
+  function deleteRule(i) {
+    pauseRules.splice(i, 1);
+    renderRules();
+  }
+
+  function addRule() {
+    const ch = document.getElementById('newChar').value.trim();
+    const sec = parseFloat(document.getElementById('newSec').value) || 1;
+    if (!ch) { document.getElementById('newChar').focus(); return; }
+    // prevent duplicate
+    if (pauseRules.some(r => r.char === ch)) {
+      const existing = pauseRules.find(r => r.char === ch);
+      existing.sec = sec;
+    } else {
+      pauseRules.push({ char: ch, sec });
+    }
+    document.getElementById('newChar').value = '';
+    document.getElementById('newSec').value = '1';
+    renderRules();
+  }
+
+  // ── Digit-by-digit conversion ──────────────────────
+  const DIGIT_WORDS = {'0':'zero','1':'one','2':'two','3':'three','4':'four',
+    '5':'five','6':'six','7':'seven','8':'eight','9':'nine'};
+
+  function digitByDigit(str) {
+    return str.split('').map(ch => DIGIT_WORDS[ch] || ch).join(' ').replace(/\s+/g,' ').trim();
+  }
+
+  // ── Core: build segments from text ─────────────────
+  // Returns array of { type: 'speak'|'pause', value }
+  function buildSegments(text) {
+    if (!pauseRules.length) {
+      return [{ type: 'speak', value: digitByDigit(text) }];
+    }
+
+    // Build regex that matches any of the special chars
+    const escaped = pauseRules.map(r => r.char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regex = new RegExp('(' + escaped.join('|') + ')', 'g');
+
+    const parts = text.split(regex);
+    const segments = [];
+    for (const part of parts) {
+      if (!part) continue;
+      const rule = pauseRules.find(r => r.char === part);
+      if (rule) {
+        segments.push({ type: 'pause', value: rule.sec * 1000 });
+      } else {
+        const spoken = digitByDigit(part);
+        if (spoken) segments.push({ type: 'speak', value: spoken });
+      }
+    }
+    return segments;
+  }
+
+  // ── Speech helpers ─────────────────────────────────
+  function getSpeed() { return parseFloat(document.getElementById('speedRange').value); }
+
+  function updateSpeed() {
+    const v = getSpeed();
+    document.getElementById('speedVal').textContent = v.toFixed(1) + '×';
+  }
+
+  function showPaused(on) {
+    document.getElementById('pauseBadge').classList.toggle('show', on);
+    document.getElementById('speakBadge').classList.toggle('show', !on && isSpeaking);
+  }
+
+  // Promise-based speak a single chunk
+  function speakChunk(text) {
+    return new Promise(resolve => {
+      if (stopRequested) { resolve(); return; }
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = getSpeed();
+      utter.pitch = 1;
+      utter.lang = 'en-US';
+      utter.onend = () => resolve();
+      utter.onerror = () => resolve();
+      window.speechSynthesis.speak(utter);
+    });
+  }
+
+  // Promise-based pause
+  function pauseMs(ms) {
+    return new Promise(resolve => {
+      if (stopRequested) { resolve(); return; }
+      showPaused(true);
+      setTimeout(() => {
+        showPaused(false);
+        resolve();
+      }, ms);
+    });
+  }
+
+  // Speak one item (with pause rules applied)
+  async function speakItemText(text) {
+    const segments = buildSegments(text);
+    for (const seg of segments) {
+      if (stopRequested) break;
+      if (seg.type === 'speak') {
+        await speakChunk(seg.value);
+      } else {
+        window.speechSynthesis.cancel(); // ensure silence during pause
+        await pauseMs(seg.value);
+      }
+    }
+  }
+
+  function speakOne(i, e) {
+    e.stopPropagation();
+    stopSpeech();
+    stopRequested = false;
+    isSpeaking = true;
+    document.getElementById('speakBadge').classList.add('show');
+    speakItemText(items[i].text).then(() => {
+      if (!isSpeaking) return;
+      isSpeaking = false;
+      document.getElementById('speakBadge').classList.remove('show');
+      document.getElementById('pauseBadge').classList.remove('show');
+    });
+  }
+
+  async function startSpeech() {
+    if (!items.length) return;
+    stopSpeech();
+    stopRequested = false;
+    isSpeaking = true;
+    speechIdx = 0;
+    document.getElementById('playBtn').classList.add('active');
+    document.getElementById('speakBadge').classList.add('show');
+    await runSpeechQueue();
+  }
+
+  // Highlight item by directly touching DOM — no full re-render
+  function highlightItem(i) {
+    // Remove highlight from all
+    document.querySelectorAll('.item').forEach(el => el.classList.remove('speaking-item'));
+    if (i < 0) return;
+    const el = document.getElementById('item-' + i);
+    if (!el) return;
+    el.classList.add('speaking-item');
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // Mark item as done directly in DOM
+  function markDoneInDOM(i) {
+    const el = document.getElementById('item-' + i);
+    if (!el) return;
+    el.classList.remove('speaking-item');
+    el.classList.add('done');
+    const cb = el.querySelector('input[type=checkbox]');
+    if (cb) cb.checked = true;
+    const numText = el.querySelector('.num-text');
+    if (numText) numText.style.textDecoration = 'line-through';
+    // update progress
+    const doneCount = items.filter(x => x.done).length;
+    document.getElementById('countLabel').textContent = `${items.length} items — ${doneCount} done`;
+    document.getElementById('progressFill').style.width = (doneCount / items.length * 100) + '%';
+  }
+
+  async function runSpeechQueue() {
+    while (speechIdx < items.length) {
+      if (stopRequested) break;
+      highlightItem(speechIdx);
+      await speakItemText(items[speechIdx].text);
+      if (stopRequested) break;
+      // Auto-check current item
+      items[speechIdx].done = true;
+      markDoneInDOM(speechIdx);
+      speechIdx++;
+      await new Promise(r => setTimeout(r, 120));
+    }
+    stopSpeech();
+  }
+
+  function stopSpeech() {
+    stopRequested = true;
+    isSpeaking = false;
+    speechIdx = -1;
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    document.getElementById('playBtn').classList.remove('active');
+    document.getElementById('speakBadge').classList.remove('show');
+    document.getElementById('pauseBadge').classList.remove('show');
+    // Just remove highlight classes, no full re-render needed
+    document.querySelectorAll('.item.speaking-item').forEach(el => el.classList.remove('speaking-item'));
+  }
+
+  // ── Checklist ──────────────────────────────────────
+  function loadNumbers() {
+    const raw = document.getElementById('inputArea').value.trim();
+    if (!raw) return;
+    const nums = raw.split(',').map(s => s.trim()).filter(Boolean);
+    items = nums.map((n, i) => ({ id: i, text: n, done: false }));
+    render();
+    document.getElementById('inputArea').value = '';
+  }
+
+  function render() {
+    const list = document.getElementById('numList');
+    if (!items.length) {
+      list.innerHTML = `<div class="empty-state"><div class="big">🔢</div><p>Paste numbers above and click <strong>Load</strong></p></div>`;
+      document.getElementById('countLabel').textContent = '0 items';
+      document.getElementById('progressFill').style.width = '0%';
+      return;
+    }
+    const doneCount = items.filter(x => x.done).length;
+    document.getElementById('countLabel').textContent = `${items.length} items — ${doneCount} done`;
+    document.getElementById('progressFill').style.width = (doneCount / items.length * 100) + '%';
+    list.innerHTML = items.map((item, i) => `
+      <div class="item ${item.done ? 'done' : ''} ${speechIdx === i && isSpeaking ? 'speaking-item' : ''}"
+           id="item-${i}" onclick="toggleDone(${i}, event)">
+        <div class="check-wrap">
+          <input type="checkbox" ${item.done ? 'checked' : ''} onclick="toggleDone(${i}, event)">
+          <div class="checkmark"></div>
+        </div>
+        <span class="num-text">${escHtml(item.text)}</span>
+        <button class="speak-one" onclick="speakOne(${i}, event)" title="Read this number">🔊</button>
+        <span class="item-index">#${i + 1}</span>
+      </div>
+    `).join('');
+  }
+
+  function toggleDone(i, e) {
+    if (e.target.classList.contains('speak-one')) return;
+    items[i].done = !items[i].done;
+    render();
+  }
+
+  function clearDone() {
+    items = items.filter(x => !x.done).map((x, idx) => ({ ...x, id: idx }));
+    render();
+  }
+
+  // ── Init ───────────────────────────────────────────
+  updateSpeed();
+  renderRules();
+</script>
+</body>
+</html>
+

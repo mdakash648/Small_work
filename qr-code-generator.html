@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Code Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .container {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: #fff;
+    }
+
+    .logo h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    .logo span {
+      color: #667eea;
+    }
+
+    .tabs {
+      display: flex;
+      background: #f4f4f8;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 28px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 0;
+      border: none;
+      background: transparent;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .tab-btn.active {
+      background: #ffffff;
+      color: #667eea;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: #555;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    textarea, input[type="text"], input[type="url"] {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e8e8f0;
+      border-radius: 12px;
+      font-size: 15px;
+      color: #1a1a2e;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: none;
+      font-family: inherit;
+    }
+
+    textarea:focus, input:focus {
+      border-color: #667eea;
+    }
+
+    .options-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .option-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #777;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .option-group select,
+    .color-row {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e8e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #333;
+      background: #fff;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .option-group select:focus { border-color: #667eea; }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+    }
+
+    .color-row input[type="color"] {
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 6px;
+      padding: 0;
+      cursor: pointer;
+      background: none;
+    }
+
+    .color-row span {
+      font-size: 13px;
+      color: #555;
+    }
+
+    .generate-btn {
+      width: 100%;
+      margin-top: 24px;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 0.02em;
+    }
+
+    .generate-btn:hover { opacity: 0.92; }
+    .generate-btn:active { transform: scale(0.98); }
+
+    .result-area {
+      margin-top: 30px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .result-area.visible { display: flex; }
+
+    .qr-wrapper {
+      background: #fff;
+      border: 2px solid #e8e8f0;
+      border-radius: 16px;
+      padding: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #qr-canvas-container canvas,
+    #qr-canvas-container img {
+      display: block;
+    }
+
+    .download-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 32px;
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .download-btn:hover { background: #2a2a4e; }
+    .download-btn:active { transform: scale(0.97); }
+
+    .download-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: #fff;
+    }
+
+    .info-tag {
+      font-size: 12px;
+      color: #aaa;
+      text-align: center;
+    }
+
+    .error-msg {
+      color: #e24b4a;
+      font-size: 13px;
+      margin-top: 6px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 3h7v7H3V3zm2 2v3h3V5H5zm8-2h7v7h-7V3zm2 2v3h3V5h-3zM3 13h7v7H3v-7zm2 2v3h3v-3H5zm10 0h2v2h-2v-2zm-2-2h2v2h-2v-2zm4 4h2v2h-2v-2zm2-2h2v2h-2v-2zm0 4h-4v2h4v-2zm-4-4h-2v2h2v-2z"/>
+      </svg>
+    </div>
+    <h1>QR <span>Generator</span></h1>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('text', this)">Text</button>
+    <button class="tab-btn" onclick="switchTab('url', this)">URL</button>
+  </div>
+
+  <div id="tab-text">
+    <div class="section-label">Enter Text</div>
+    <textarea id="text-input" rows="4" placeholder="Type or paste any text here..."></textarea>
+  </div>
+
+  <div id="tab-url" style="display:none;">
+    <div class="section-label">Enter URL</div>
+    <input type="url" id="url-input" placeholder="https://example.com" />
+    <div class="error-msg" id="url-error">Please enter a valid URL (starting with http:// or https://)</div>
+  </div>
+
+  <div class="options-row">
+    <div class="option-group">
+      <label>Size</label>
+      <select id="qr-size">
+        <option value="128">Small (128px)</option>
+        <option value="200" selected>Medium (200px)</option>
+        <option value="300">Large (300px)</option>
+        <option value="400">XL (400px)</option>
+      </select>
+    </div>
+    <div class="option-group">
+      <label>Error Level</label>
+      <select id="qr-level">
+        <option value="L">Low (L)</option>
+        <option value="M" selected>Medium (M)</option>
+        <option value="Q">High (Q)</option>
+        <option value="H">Max (H)</option>
+      </select>
+    </div>
+    <div class="option-group">
+      <label>QR Color</label>
+      <div class="color-row">
+        <input type="color" id="qr-dark" value="#000000" />
+        <span>Dark color</span>
+      </div>
+    </div>
+    <div class="option-group">
+      <label>Background</label>
+      <div class="color-row">
+        <input type="color" id="qr-light" value="#ffffff" />
+        <span>Light color</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="generate-btn" onclick="generateQR()">Generate QR Code</button>
+
+  <div class="result-area" id="result-area">
+    <div class="qr-wrapper">
+      <div id="qr-canvas-container"></div>
+    </div>
+    <button class="download-btn" onclick="downloadQR()">
+      <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zm7-18v12l-4-4-1.41 1.41L12 17.83l5.41-5.42L16 11l-4 4V2h-2z"/></svg>
+      Download PNG
+    </button>
+    <div class="info-tag" id="info-tag"></div>
+  </div>
+
+</div>
+
+<script>
+  let activeTab = 'text';
+
+  function switchTab(tab, btn) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-text').style.display = tab === 'text' ? 'block' : 'none';
+    document.getElementById('tab-url').style.display = tab === 'url' ? 'block' : 'none';
+    document.getElementById('url-error').style.display = 'none';
+  }
+
+  function generateQR() {
+    const container = document.getElementById('qr-canvas-container');
+    const resultArea = document.getElementById('result-area');
+    const urlError = document.getElementById('url-error');
+
+    let inputVal = '';
+
+    if (activeTab === 'text') {
+      inputVal = document.getElementById('text-input').value.trim();
+      if (!inputVal) { alert('Please enter some text to generate a QR code.'); return; }
+    } else {
+      inputVal = document.getElementById('url-input').value.trim();
+      urlError.style.display = 'none';
+      try {
+        const u = new URL(inputVal);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error();
+      } catch {
+        urlError.style.display = 'block';
+        return;
+      }
+    }
+
+    const size = parseInt(document.getElementById('qr-size').value);
+    const level = document.getElementById('qr-level').value;
+    const darkColor = document.getElementById('qr-dark').value;
+    const lightColor = document.getElementById('qr-light').value;
+
+    container.innerHTML = '';
+
+    new QRCode(container, {
+      text: inputVal,
+      width: size,
+      height: size,
+      colorDark: darkColor,
+      colorLight: lightColor,
+      correctLevel: QRCode.CorrectLevel[level]
+    });
+
+    resultArea.classList.add('visible');
+
+    const preview = inputVal.length > 40 ? inputVal.slice(0, 40) + '...' : inputVal;
+    document.getElementById('info-tag').textContent = `"${preview}" · ${size}×${size}px`;
+
+    setTimeout(() => {
+      resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  }
+
+  function downloadQR() {
+    const container = document.getElementById('qr-canvas-container');
+    const canvas = container.querySelector('canvas');
+    const img = container.querySelector('img');
+
+    if (canvas) {
+      const link = document.createElement('a');
+      link.download = 'qrcode.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } else if (img) {
+      const tempCanvas = document.createElement('canvas');
+      const size = parseInt(document.getElementById('qr-size').value);
+      tempCanvas.width = size;
+      tempCanvas.height = size;
+      const ctx = tempCanvas.getContext('2d');
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+      image.onload = () => {
+        ctx.drawImage(image, 0, 0, size, size);
+        const link = document.createElement('a');
+        link.download = 'qrcode.png';
+        link.href = tempCanvas.toDataURL('image/png');
+        link.click();
+      };
+      image.src = img.src;
+    }
+  }
+
+  document.getElementById('text-input').addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter') generateQR();
+  });
+
+  document.getElementById('url-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') generateQR();
+  });
+</script>
+
+</body>
+</html>

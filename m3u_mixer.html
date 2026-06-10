@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>M3U Playlist Bulk Group Customizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+      <h1 class="text-3xl font-extrabold text-center mb-8 text-indigo-400">
+        🎬 M3U Bulk Group Customizer
+      </h1>
+
+      <!-- Step 1: Upload M3U Files -->
+      <div
+        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700"
+      >
+        <h2 class="text-xl font-bold mb-4 text-indigo-300">
+          ১. M3U ফাইল আপলোড করো
+        </h2>
+        <input
+          type="file"
+          id="m3uFiles"
+          multiple
+          accept=".m3u,.m3u8"
+          class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+        />
+        <p class="text-xs text-gray-500 mt-2">
+          * একসাথে একাধিক সিঙ্গেল মুভির ফাইল সিলেক্ট করতে পারো।
+        </p>
+      </div>
+
+      <!-- Step 2: Bulk Customization & Preview -->
+      <div
+        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700 hidden"
+        id="customizerSection"
+      >
+        <h2 class="text-xl font-bold mb-4 text-indigo-300">২. গ্রুপ সেট করো</h2>
+
+        <!-- Bulk Group Input -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-2 text-gray-400"
+            >সব মুভির জন্য কমন গ্রুপের নাম দাও:</label
+          >
+          <div class="flex gap-2">
+            <input
+              type="text"
+              id="bulkGroupName"
+              value="My Custom Group"
+              placeholder="e.g., Action Movies, Netlfix, Trending"
+              class="bg-gray-700 text-white px-4 py-2 rounded-md flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              onclick="applyBulkGroup()"
+              class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md font-medium transition"
+            >
+              গ্রুপ অ্যাপ্লাই করো
+            </button>
+          </div>
+        </div>
+
+        <!-- Movies List Preview -->
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-lg font-semibold text-gray-300">
+            টোটাল মুভি লোড হয়েছে:
+            <span id="movieCount" class="text-indigo-400">0</span> টি
+          </h3>
+        </div>
+        <div
+          id="moviesList"
+          class="space-y-2 max-h-60 overflow-y-auto pr-2 border-t border-b border-gray-700 py-3 mb-6"
+        >
+          <!-- Loaded movies preview list -->
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap gap-4">
+          <button
+            onclick="generateM3U()"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold transition"
+          >
+            Final M3U জেনারেট করো
+          </button>
+          <a
+            id="downloadBtn"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-bold transition hidden text-center cursor-pointer"
+            >📥 M3U ডাউনলোড করো</a
+          >
+        </div>
+      </div>
+
+      <!-- Step 3: M3U Preview / Copy / Edit -->
+      <div
+        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700 hidden"
+        id="previewSection"
+      >
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-xl font-bold text-indigo-300">
+            ৩. Final M3U Preview
+          </h2>
+          <div class="flex gap-2">
+            <button
+              onclick="toggleEdit()"
+              id="editToggleBtn"
+              class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+            >
+              ✏️ Edit
+            </button>
+            <button
+              onclick="copyM3U()"
+              id="copyBtn"
+              class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+            >
+              📋 Copy
+            </button>
+            <a
+              id="downloadBtn2"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition text-center cursor-pointer"
+              >📥 Download</a
+            >
+          </div>
+        </div>
+        <textarea
+          id="m3uPreviewBox"
+          readonly
+          spellcheck="false"
+          class="w-full h-64 bg-gray-950 text-green-300 text-xs font-mono px-4 py-3 rounded-md border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+        ></textarea>
+        <div class="flex justify-between items-center mt-2">
+          <p id="copyStatus" class="text-xs text-green-400 font-medium hidden">
+            ✅ Copied to clipboard!
+          </p>
+          <button
+            onclick="applyEdits()"
+            id="applyEditBtn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-1.5 rounded-md text-sm font-semibold transition hidden"
+          >
+            ✔ Apply Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 4: GitHub Push Configuration -->
+      <div
+        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700 hidden"
+        id="githubSection"
+      >
+        <h2 class="text-xl font-bold mb-4 text-indigo-300">
+          ৪. ডিরেক্ট GitHub-এ আপলোড করো
+        </h2>
+
+        <!-- Mode Toggle -->
+        <div class="flex gap-3 mb-5">
+          <button
+            onclick="switchMode('own')"
+            id="modeOwnBtn"
+            class="flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white"
+          >
+            👤 Own (Saved Config)
+          </button>
+          <button
+            onclick="switchMode('custom')"
+            id="modeCustomBtn"
+            class="flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300"
+          >
+            ✏️ Custom
+          </button>
+        </div>
+
+        <!-- Own Mode -->
+        <div id="ownModePanel">
+          <p class="text-xs text-gray-400 mb-3">
+            ⚡ তোমার saved credentials ব্যবহার হবে। একবার fill করলে browser মনে
+            রাখবে।
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">GitHub PAT:</label>
+              <input
+                type="password"
+                id="ownToken"
+                placeholder="ghp_xxxxxxxxxxxx"
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1"
+                >GitHub Username:</label
+              >
+              <input
+                type="text"
+                id="ownUser"
+                placeholder="username"
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1"
+                >Repository Name:</label
+              >
+              <input
+                type="text"
+                id="ownRepo"
+                placeholder="MovieM3u"
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1"
+                >File Name (with extension):</label
+              >
+              <input
+                type="text"
+                id="ownFileName"
+                placeholder="playlist.m3u"
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <div class="flex gap-3 mt-4">
+            <button
+              onclick="saveOwnConfig()"
+              class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
+            >
+              💾 Config Save করো
+            </button>
+            <button
+              onclick="clearOwnConfig()"
+              class="bg-red-800 hover:bg-red-700 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
+            >
+              🗑️ Config মুছো
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Mode -->
+        <div id="customModePanel" class="hidden">
+          <p class="text-xs text-gray-400 mb-3">
+            🔧 যেকোনো repo-তে push করো — কিছুই save হবে না।
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">GitHub PAT:</label>
+              <input
+                type="password"
+                id="ghToken"
+                placeholder="ghp_xxxxxxxxxxxx"
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1"
+                >GitHub Username:</label
+              >
+              <input
+                type="text"
+                id="ghUser"
+                placeholder="username"
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1"
+                >Repository Name:</label
+              >
+              <input
+                type="text"
+                id="ghRepo"
+                placeholder="my-iptv-repo"
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1"
+                >File Name (with extension):</label
+              >
+              <input
+                type="text"
+                id="ghFileName"
+                value="playlist.m3u"
+                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Push Mode: Replace or Append -->
+        <div class="mt-5 flex gap-3">
+          <button
+            onclick="setPushMode('replace')"
+            id="pushReplaceBtn"
+            class="flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300"
+          >
+            🔄 Replace (পুরো ফাইল বদলাও)
+          </button>
+          <button
+            onclick="setPushMode('append')"
+            id="pushAppendBtn"
+            class="flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-green-500 bg-green-700 text-white"
+          >
+            ➕ Append (শেষে যোগ করো)
+          </button>
+        </div>
+
+        <button
+          onclick="pushToGitHub()"
+          class="mt-5 w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-md font-bold text-lg transition"
+        >
+          🚀 Push to GitHub
+        </button>
+        <p id="statusMsg" class="mt-3 text-center font-medium text-sm"></p>
+      </div>
+    </div>
+
+    <script>
+      let movies = [];
+      let finalM3UContent = "";
+      let globalGroup = "Default";
+
+      // Listen for file uploads
+      document
+        .getElementById("m3uFiles")
+        .addEventListener("change", async (e) => {
+          const files = e.target.files;
+          if (files.length === 0) return;
+
+          movies = []; // Reset list
+          for (let file of files) {
+            const text = await file.text();
+            parseM3U(text);
+          }
+
+          document.getElementById("movieCount").innerText = movies.length;
+          applyBulkGroup(); // Automatically apply whatever group is currently in the input box
+          document
+            .getElementById("customizerSection")
+            .classList.remove("hidden");
+        });
+
+      // Parse M3U
+      function parseM3U(text) {
+        const lines = text.split("\n");
+        let currentInfo = null;
+        let vlcOpts = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          let line = lines[i].trim();
+          if (line.startsWith("#EXTINF:")) {
+            currentInfo = line;
+            vlcOpts = []; // reset VLC opts for each new entry
+          } else if (line.startsWith("#EXTVLCOPT:")) {
+            vlcOpts.push(line); // collect VLC options
+          } else if (line && !line.startsWith("#")) {
+            if (currentInfo) {
+              const commaIndex = currentInfo.lastIndexOf(",");
+              const title =
+                commaIndex !== -1
+                  ? currentInfo.substring(commaIndex + 1).trim()
+                  : "Unknown Movie";
+
+              // Strip out existing group titles so we can force our custom global group
+              let cleanInfo = currentInfo
+                .replace(/group-title="[^"]*"/g, "")
+                .trim();
+
+              movies.push({
+                info: cleanInfo,
+                title: title,
+                url: line,
+                vlcOpts: [...vlcOpts], // preserve EXTVLCOPT lines
+              });
+              currentInfo = null;
+              vlcOpts = [];
+            }
+          }
+        }
+      }
+
+      // Apply bulk group to all loaded movies and show preview
+      function applyBulkGroup() {
+        const groupInput = document.getElementById("bulkGroupName");
+        globalGroup = groupInput.value.trim() || "Default";
+
+        const container = document.getElementById("moviesList");
+        container.innerHTML = "";
+
+        movies.forEach((movie) => {
+          const div = document.createElement("div");
+          div.className =
+            "flex justify-between items-center bg-gray-700 px-3 py-1.5 rounded-md text-sm gap-4";
+          div.innerHTML = `
+                    <span class="truncate font-medium max-w-md" title="${movie.title}">${movie.title}</span>
+                    <span class="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-indigo-700">${globalGroup}</span>
+                `;
+          container.appendChild(div);
+        });
+      }
+
+      // Generate Final M3U Content
+      function generateM3U() {
+        if (movies.length === 0) return alert("কোনো মুভি ফাইল আপলোড করা হয়নি!");
+
+        let m3uString = "#EXTM3U\n";
+        movies.forEach((movie) => {
+          let extinf = movie.info;
+          // Dynamically inject the global group title into the #EXTINF metadata
+          if (extinf.includes("#EXTINF:")) {
+            extinf = extinf.replace(
+              "#EXTINF:",
+              `#EXTINF:-1 group-title="${globalGroup}" `,
+            );
+          }
+          // Append EXTVLCOPT lines (referrer, user-agent, etc.) before the URL
+          const vlcLines =
+            movie.vlcOpts && movie.vlcOpts.length > 0
+              ? movie.vlcOpts.join("\n") + "\n"
+              : "";
+          m3uString += `${extinf}\n${vlcLines}${movie.url}\n`;
+        });
+
+        finalM3UContent = m3uString;
+
+        // Show preview section
+        const previewBox = document.getElementById("m3uPreviewBox");
+        previewBox.value = finalM3UContent;
+        previewBox.readOnly = true;
+        document.getElementById("previewSection").classList.remove("hidden");
+        document.getElementById("editToggleBtn").textContent = "✏️ Edit";
+        document.getElementById("applyEditBtn").classList.add("hidden");
+
+        updateDownloadLinks();
+        document.getElementById("githubSection").classList.remove("hidden");
+        setTimeout(
+          () =>
+            document
+              .getElementById("previewSection")
+              .scrollIntoView({ behavior: "smooth" }),
+          100,
+        );
+      }
+
+      function updateDownloadLinks() {
+        const fname =
+          document.getElementById("ghFileName").value || "custom_playlist.m3u";
+        const blob = new Blob([finalM3UContent], { type: "text/plain" });
+        const objUrl = URL.createObjectURL(blob);
+        const dlBtn = document.getElementById("downloadBtn");
+        dlBtn.href = objUrl;
+        dlBtn.download = fname;
+        dlBtn.classList.remove("hidden");
+        const dlBtn2 = document.getElementById("downloadBtn2");
+        dlBtn2.href = objUrl;
+        dlBtn2.download = fname;
+      }
+
+      function toggleEdit() {
+        const box = document.getElementById("m3uPreviewBox");
+        const btn = document.getElementById("editToggleBtn");
+        const applyBtn = document.getElementById("applyEditBtn");
+        if (box.readOnly) {
+          box.readOnly = false;
+          box.style.borderColor = "#eab308";
+          box.style.outline = "2px solid #eab308";
+          btn.textContent = "🔒 Lock";
+          btn.style.backgroundColor = "#4b5563";
+          applyBtn.classList.remove("hidden");
+        } else {
+          box.readOnly = true;
+          box.style.borderColor = "";
+          box.style.outline = "";
+          btn.textContent = "✏️ Edit";
+          btn.style.backgroundColor = "";
+          applyBtn.classList.add("hidden");
+        }
+      }
+
+      function applyEdits() {
+        finalM3UContent = document.getElementById("m3uPreviewBox").value;
+        updateDownloadLinks();
+        toggleEdit();
+        showStatus("✅ Changes applied!");
+      }
+
+      async function copyM3U() {
+        const text = document.getElementById("m3uPreviewBox").value;
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          document.getElementById("m3uPreviewBox").select();
+          document.execCommand("copy");
+        }
+        showStatus("✅ Copied to clipboard!");
+      }
+
+      function showStatus(msg) {
+        const s = document.getElementById("copyStatus");
+        s.textContent = msg;
+        s.classList.remove("hidden");
+        setTimeout(() => s.classList.add("hidden"), 2500);
+      }
+
+      // ── Mode state ──────────────────────────────────────────
+      let currentMode = "own"; // 'own' | 'custom'
+      let pushMode = "append"; // 'replace' | 'append'
+
+      function switchMode(mode) {
+        currentMode = mode;
+        const ownPanel = document.getElementById("ownModePanel");
+        const customPanel = document.getElementById("customModePanel");
+        const ownBtn = document.getElementById("modeOwnBtn");
+        const customBtn = document.getElementById("modeCustomBtn");
+        if (mode === "own") {
+          ownPanel.classList.remove("hidden");
+          customPanel.classList.add("hidden");
+          ownBtn.className =
+            "flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white";
+          customBtn.className =
+            "flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
+        } else {
+          ownPanel.classList.add("hidden");
+          customPanel.classList.remove("hidden");
+          customBtn.className =
+            "flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white";
+          ownBtn.className =
+            "flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
+        }
+      }
+
+      function setPushMode(mode) {
+        pushMode = mode;
+        const replaceBtn = document.getElementById("pushReplaceBtn");
+        const appendBtn = document.getElementById("pushAppendBtn");
+        if (mode === "replace") {
+          replaceBtn.className =
+            "flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-red-500 bg-red-700 text-white";
+          appendBtn.className =
+            "flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
+        } else {
+          appendBtn.className =
+            "flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-green-500 bg-green-700 text-white";
+          replaceBtn.className =
+            "flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
+        }
+      }
+
+      // ── Own config: localStorage ─────────────────────────────
+      function saveOwnConfig() {
+        localStorage.setItem(
+          "m3u_own_token",
+          document.getElementById("ownToken").value.trim(),
+        );
+        localStorage.setItem(
+          "m3u_own_user",
+          document.getElementById("ownUser").value.trim(),
+        );
+        localStorage.setItem(
+          "m3u_own_repo",
+          document.getElementById("ownRepo").value.trim(),
+        );
+        localStorage.setItem(
+          "m3u_own_filename",
+          document.getElementById("ownFileName").value.trim(),
+        );
+        showStatus("✅ Own config saved!");
+      }
+
+      function clearOwnConfig() {
+        [
+          "m3u_own_token",
+          "m3u_own_user",
+          "m3u_own_repo",
+          "m3u_own_filename",
+        ].forEach((k) => localStorage.removeItem(k));
+        ["ownToken", "ownUser", "ownRepo", "ownFileName"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+        showStatus("🗑️ Config cleared!");
+      }
+
+      function loadOwnConfig() {
+        const map = {
+          ownToken: "m3u_own_token",
+          ownUser: "m3u_own_user",
+          ownRepo: "m3u_own_repo",
+          ownFileName: "m3u_own_filename",
+        };
+        for (const [id, key] of Object.entries(map)) {
+          const val = localStorage.getItem(key);
+          if (val) document.getElementById(id).value = val;
+        }
+      }
+
+      // ── Main Push ─────────────────────────────────────────────
+      async function pushToGitHub() {
+        let token, username, repo, filename;
+
+        if (currentMode === "own") {
+          token = document.getElementById("ownToken").value.trim();
+          username = document.getElementById("ownUser").value.trim();
+          repo = document.getElementById("ownRepo").value.trim();
+          filename = document.getElementById("ownFileName").value.trim();
+        } else {
+          token = document.getElementById("ghToken").value.trim();
+          username = document.getElementById("ghUser").value.trim();
+          repo = document.getElementById("ghRepo").value.trim();
+          filename = document.getElementById("ghFileName").value.trim();
+        }
+
+        const statusMsg = document.getElementById("statusMsg");
+
+        if (!token || !username || !repo || !filename) {
+          alert("দয়া করে GitHub-এর সব ইনফরমেশন ফিল-আপ করো!");
+          return;
+        }
+        if (!finalM3UContent) {
+          alert("আগে Final M3U জেনারেট বাটনে ক্লিক করো!");
+          return;
+        }
+
+        statusMsg.innerText = "GitHub-এ পুশ হচ্ছে... একটু ওয়েট করো...";
+        statusMsg.className =
+          "mt-3 text-center text-amber-400 font-medium text-sm";
+
+        const apiUrl = `https://api.github.com/repos/${username}/${repo}/contents/${filename}`;
+        let sha = null;
+        let existingContent = "";
+
+        // Fetch existing file (SHA always needed; content needed for append)
+        try {
+          const checkRes = await fetch(apiUrl, {
+            headers: { Authorization: `token ${token}` },
+          });
+          if (checkRes.ok) {
+            const fileData = await checkRes.json();
+            sha = fileData.sha;
+            if (pushMode === "append") {
+              existingContent = decodeURIComponent(
+                escape(atob(fileData.content.replace(/\n/g, ""))),
+              );
+            }
+          }
+        } catch (err) {
+          console.log("New file will be created.");
+        }
+
+        // Build final content
+        let contentToPush;
+        if (pushMode === "append" && existingContent) {
+          const trimmedExisting = existingContent.trimEnd();
+          // Remove #EXTM3U header from new block — already exists in file
+          const newBlock = finalM3UContent
+            .replace(/^#EXTM3U\r?\n?/, "")
+            .trimStart();
+          contentToPush = trimmedExisting + "\n\n" + newBlock;
+        } else {
+          contentToPush = finalM3UContent;
+        }
+
+        const base64Content = btoa(unescape(encodeURIComponent(contentToPush)));
+        const modeLabel = pushMode === "append" ? "Appended to" : "Replaced";
+
+        const bodyData = {
+          message: `${modeLabel} ${filename} | group: ${globalGroup}`,
+          content: base64Content,
+        };
+        if (sha) bodyData.sha = sha;
+
+        try {
+          const response = await fetch(apiUrl, {
+            method: "PUT",
+            headers: {
+              Authorization: `token ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(bodyData),
+          });
+
+          if (response.ok) {
+            const label =
+              pushMode === "append"
+                ? "শেষে যোগ হয়ে গেছে ✅"
+                : "পুরো ফাইল আপডেট হয়ে গেছে ✅";
+            statusMsg.innerText = `🚀 সাবাশ! GitHub-এ ${label}`;
+            statusMsg.className =
+              "mt-3 text-center text-green-400 font-bold text-sm";
+          } else {
+            const errData = await response.json();
+            statusMsg.innerText = `ঝামেলা হয়েছে: ${errData.message}`;
+            statusMsg.className =
+              "mt-3 text-center text-red-400 font-bold text-sm";
+          }
+        } catch (error) {
+          statusMsg.innerText = `Error: ${error.message}`;
+          statusMsg.className =
+            "mt-3 text-center text-red-400 font-bold text-sm";
+        }
+      }
+
+      window.addEventListener("DOMContentLoaded", loadOwnConfig);
+    </script>
+  </body>
+</html>
