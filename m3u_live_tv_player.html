@@ -122,6 +122,53 @@
         color: var(--accent);
       }
 
+      /* UPDATE BADGE */
+      .tbtn.has-update {
+        border-color: #ef4444;
+        color: #ef4444;
+        animation: pulse-red 2s infinite;
+      }
+      .tbtn.has-update:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: #ef4444;
+        color: #ef4444;
+      }
+      @keyframes pulse-red {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
+        }
+      }
+      .update-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        background: #ef4444;
+        border-radius: 50%;
+        margin-left: 2px;
+        vertical-align: middle;
+        animation: blink-dot 1.2s infinite;
+      }
+      @keyframes blink-dot {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.2;
+        }
+      }
+      .tbtn.refreshing {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+      .tbtn.refreshing i {
+        animation: spin 0.8s linear infinite;
+      }
+
       /* MAIN AREA */
       #main {
         display: flex;
@@ -141,6 +188,7 @@
           transform 0.3s ease,
           width 0.3s ease;
         overflow: hidden;
+        min-height: 0;
       }
       #sidebar.hidden {
         transform: translateX(-100%);
@@ -194,6 +242,7 @@
         overflow-y: auto;
         padding: 6px;
         scrollbar-width: thin;
+        min-height: 0;
       }
 
       /* GROUPS & ITEMS */
@@ -755,6 +804,157 @@
         background: rgba(226, 75, 74, 0.1);
       }
 
+      /* ===== DELETED CHANNELS PANEL ===== */
+      #deleted-panel {
+        border-top: 2px solid #ef4444;
+        flex-shrink: 0;
+        background: var(--bg-sidebar);
+        overflow: hidden;
+      }
+      #deleted-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 14px 8px;
+        cursor: pointer;
+        user-select: none;
+        gap: 8px;
+        background: rgba(239, 68, 68, 0.07);
+      }
+      #deleted-panel-head:hover {
+        background: rgba(239, 68, 68, 0.13);
+      }
+      #deleted-panel-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: #ef4444;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+      }
+      #deleted-count-badge {
+        background: #ef4444;
+        color: #fff;
+        border-radius: 10px;
+        padding: 1px 7px;
+        font-size: 10px;
+        font-weight: 700;
+      }
+      #deleted-panel-chevron {
+        color: #ef4444;
+        font-size: 12px;
+        transition: transform 0.25s;
+      }
+      #deleted-panel.open #deleted-panel-chevron {
+        transform: rotate(180deg);
+      }
+      #deleted-restore-all {
+        background: transparent;
+        border: 0.5px solid #ef4444;
+        color: #ef4444;
+        border-radius: 6px;
+        padding: 3px 9px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s;
+        flex-shrink: 0;
+      }
+      #deleted-restore-all:hover {
+        background: rgba(239, 68, 68, 0.18);
+      }
+      #deleted-list-inner {
+        overflow-y: auto;
+        max-height: 0;
+        transition: max-height 0.35s ease;
+        padding: 0 6px;
+        scrollbar-width: thin;
+      }
+      #deleted-panel.open #deleted-list-inner {
+        max-height: 260px;
+        padding: 4px 6px 8px;
+      }
+      .del-ch-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        margin-bottom: 3px;
+        background: rgba(239, 68, 68, 0.06);
+        border: 0.5px solid rgba(239, 68, 68, 0.2);
+      }
+      .del-ch-logo {
+        width: 28px;
+        height: 28px;
+        border-radius: 5px;
+        background: var(--bg-input);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        color: #ef4444;
+        font-weight: 700;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+      .del-ch-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .del-ch-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .del-ch-name {
+        font-size: 12.5px;
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 500;
+        text-decoration: line-through;
+        opacity: 0.7;
+      }
+      .del-ch-group {
+        font-size: 10px;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .del-restore-btn {
+        background: transparent;
+        border: 0.5px solid var(--accent);
+        color: var(--accent);
+        border-radius: 6px;
+        padding: 3px 9px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition:
+          background 0.15s,
+          color 0.15s;
+        white-space: nowrap;
+      }
+      .del-restore-btn:hover {
+        background: var(--accent);
+        color: #fff;
+      }
+      #deleted-empty {
+        text-align: center;
+        padding: 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+        display: none;
+      }
+
       /* DELETE CHANNEL BUTTON */
       .ch-delete {
         position: absolute;
@@ -763,7 +963,7 @@
         transform: translateY(-50%);
         background: transparent;
         border: none;
-        color: transparent;
+        color: #71717a;
         cursor: pointer;
         padding: 4px;
         font-size: 13px;
@@ -782,7 +982,7 @@
         background: rgba(226, 75, 74, 0.12);
       }
       .ch-item.active .ch-delete {
-        color: rgba(255, 255, 255, 0.5);
+        color: #fff;
       }
       .ch-item.active .ch-delete:hover {
         color: #ff8080 !important;
@@ -884,6 +1084,79 @@
         height: 100%;
         padding-bottom: env(safe-area-inset-bottom, 0px);
       }
+
+      /* UNDO TOAST */
+      #undo-toast {
+        position: fixed;
+        bottom: 76px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: #1e1e2e;
+        border: 0.5px solid var(--accent);
+        color: #fff;
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-size: 13px;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+        pointer-events: none;
+        max-width: 90vw;
+        white-space: nowrap;
+      }
+      #undo-toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+        pointer-events: auto;
+      }
+      #undo-toast .undo-msg {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      #undo-toast .undo-progress {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: var(--accent);
+        border-radius: 0 0 12px 12px;
+        width: 100%;
+        transform-origin: left;
+        animation: none;
+      }
+      #undo-toast.show .undo-progress {
+        animation: shrink-bar 5s linear forwards;
+      }
+      @keyframes shrink-bar {
+        from {
+          transform: scaleX(1);
+        }
+        to {
+          transform: scaleX(0);
+        }
+      }
+      #undo-btn {
+        background: var(--accent);
+        border: none;
+        color: #fff;
+        border-radius: 7px;
+        padding: 5px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.15s;
+      }
+      #undo-btn:hover {
+        background: var(--accent-hover);
+      }
       .bnav-btn {
         flex: 1;
         display: flex;
@@ -977,6 +1250,9 @@
           z-index: 40 !important;
           transform: translateX(-110%) !important;
           transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          display: flex !important;
+          flex-direction: column !important;
+          overflow: hidden !important;
         }
         #sidebar.mobile-open {
           transform: translateX(0) !important;
@@ -984,6 +1260,18 @@
         #sidebar.hidden {
           transform: translateX(-110%) !important;
           width: min(85vw, 310px) !important;
+        }
+
+        /* Hide sidebar deleted panel on mobile - use bottom nav Deleted button instead */
+        #deleted-panel {
+          display: none !important;
+        }
+
+        /* Channel list takes remaining space */
+        #channel-list {
+          flex: 1 !important;
+          min-height: 0 !important;
+          overflow-y: auto !important;
         }
 
         #topbar {
@@ -1171,10 +1459,6 @@
       <!-- Bottom navigation bar -->
       <div id="bottom-nav">
         <div class="bnav-items">
-          <button class="bnav-btn" id="bnav-home" onclick="bnavAction('home')">
-            <i class="fa-solid fa-tv"></i>
-            <span>Player</span>
-          </button>
           <button
             class="bnav-btn"
             id="bnav-channels"
@@ -1193,11 +1477,27 @@
           </button>
           <button
             class="bnav-btn"
-            id="bnav-editor"
-            onclick="bnavAction('editor')"
+            id="bnav-deleted"
+            onclick="bnavAction('deleted')"
           >
-            <i class="fa-solid fa-code"></i>
-            <span>Editor</span>
+            <i class="fa-solid fa-trash-can"></i>
+            <span>Deleted</span>
+          </button>
+          <button
+            class="bnav-btn"
+            id="bnav-refresh"
+            onclick="bnavAction('refresh')"
+          >
+            <i class="fa-solid fa-rotate" id="bnav-refresh-icon"></i>
+            <span>Refresh</span>
+          </button>
+          <button
+            class="bnav-btn"
+            id="bnav-restart"
+            onclick="bnavAction('restart')"
+          >
+            <i class="fa-solid fa-power-off"></i>
+            <span>Restart</span>
           </button>
           <button
             class="bnav-btn"
@@ -1210,6 +1510,15 @@
         </div>
       </div>
 
+      <!-- Undo toast for channel delete -->
+      <div id="undo-toast">
+        <span class="undo-msg" id="undo-msg">চ্যানেল মুছে ফেলা হয়েছে</span>
+        <button id="undo-btn" onclick="undoDeleteChannel()">
+          <i class="fa-solid fa-rotate-left"></i> Undo
+        </button>
+        <div class="undo-progress" id="undo-progress"></div>
+      </div>
+
       <div id="topbar">
         <div class="logo">
           <i class="fa-solid fa-tv"></i>
@@ -1219,6 +1528,22 @@
           >
         </div>
         <div class="actions">
+          <button
+            class="tbtn"
+            id="refresh-btn"
+            onclick="refreshPlaylist()"
+            title="GitHub থেকে Playlist আপডেট করুন"
+          >
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+          <button
+            class="tbtn"
+            id="restart-btn"
+            onclick="restartPlayer()"
+            title="Player রিস্টার্ট করুন (সব cache মুছে fresh লোড)"
+          >
+            <i class="fa-solid fa-power-off"></i> Restart
+          </button>
           <button
             class="tbtn"
             id="theme-btn"
@@ -1257,6 +1582,34 @@
               />
             </div>
           </div>
+          <!-- Deleted Channels Panel -->
+          <div id="deleted-panel">
+            <div id="deleted-panel-head" onclick="toggleDeletedPanel()">
+              <div id="deleted-panel-title">
+                <i class="fa-solid fa-trash-can"></i>
+                Deleted Channels
+                <span id="deleted-count-badge">0</span>
+              </div>
+              <button
+                id="deleted-restore-all"
+                onclick="
+                  event.stopPropagation();
+                  restoreAllChannels();
+                "
+                title="সব মুছে ফেলা চ্যানেল ফিরিয়ে আনুন"
+              >
+                <i class="fa-solid fa-rotate-left"></i> Restore All
+              </button>
+              <i
+                class="fa-solid fa-chevron-down"
+                id="deleted-panel-chevron"
+              ></i>
+            </div>
+            <div id="deleted-list-inner">
+              <div id="deleted-empty">কোনো মুছে ফেলা চ্যানেল নেই</div>
+            </div>
+          </div>
+
           <div id="channel-list"></div>
         </div>
 
@@ -1361,6 +1714,133 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Mobile Deleted Channels Modal (outside #app to avoid overflow:hidden clipping) -->
+    <div
+      id="mobile-deleted-overlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 150;
+        align-items: flex-end;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+      "
+    >
+      <div
+        style="
+          background: var(--bg-surface);
+          border-radius: 20px 20px 0 0;
+          width: 100%;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+          padding: 16px;
+        "
+      >
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+          "
+        >
+          <div
+            style="
+              font-size: 14px;
+              font-weight: 700;
+              color: #ef4444;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            "
+          >
+            <i class="fa-solid fa-trash-can"></i> Deleted Channels
+            <span
+              id="mob-del-count-badge"
+              style="
+                background: #ef4444;
+                color: #fff;
+                border-radius: 10px;
+                padding: 1px 7px;
+                font-size: 10px;
+                font-weight: 700;
+              "
+              >0</span
+            >
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center">
+            <button
+              onclick="
+                restoreAllChannels();
+                renderMobileDeletedModal();
+              "
+              style="
+                background: transparent;
+                border: 0.5px solid #ef4444;
+                color: #ef4444;
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-size: 11px;
+                font-weight: 600;
+                cursor: pointer;
+              "
+            >
+              <i class="fa-solid fa-rotate-left"></i> Restore All
+            </button>
+            <button
+              onclick="closeMobileDeletedModal()"
+              style="
+                background: transparent;
+                border: 0.5px solid var(--border-color);
+                color: var(--text-main);
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-size: 11px;
+                cursor: pointer;
+              "
+            >
+              <i class="fa-solid fa-xmark"></i> Close
+            </button>
+          </div>
+        </div>
+        <div
+          id="mob-del-empty"
+          style="
+            text-align: center;
+            padding: 24px;
+            font-size: 13px;
+            color: var(--text-muted);
+            display: none;
+          "
+        >
+          <i
+            class="fa-solid fa-check-circle"
+            style="
+              font-size: 28px;
+              margin-bottom: 8px;
+              display: block;
+              color: #22c55e;
+            "
+          ></i>
+          কোনো মুছে ফেলা চ্যানেল নেই
+        </div>
+        <div
+          id="mob-del-list"
+          style="
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+            padding: 0 2px 8px;
+            -webkit-overflow-scrolling: touch;
+          "
+        ></div>
       </div>
     </div>
 
@@ -1490,10 +1970,231 @@
       let sidebarVisible = true;
       let deletedChannelUrls = []; // deleted channel URLs per playlist
       let activePlaylistName = null; // currently active playlist name
+      let sourceChannels = []; // full unfiltered source from GitHub/URL
 
       const DEFAULT_PLAYLIST_URL =
         "https://raw.githubusercontent.com/mdakash648/MovieM3u/refs/heads/main/Live%20tv.m3u";
       const DEFAULT_PLAYLIST_NAME = "BD Live TV (Default)";
+
+      // GitHub API URL to check latest commit for the M3U file
+      const GITHUB_COMMITS_API =
+        "https://api.github.com/repos/mdakash648/MovieM3u/commits?path=Live%20tv.m3u&per_page=1";
+      const GITHUB_COMMIT_STORAGE_KEY = "m3u_github_last_commit_sha";
+
+      // ========== GITHUB UPDATE CHECK ==========
+      async function checkGitHubUpdate() {
+        try {
+          const resp = await fetch(GITHUB_COMMITS_API, {
+            headers: { Accept: "application/vnd.github+json" },
+          });
+          if (!resp.ok) return;
+          const data = await resp.json();
+          if (!data || !data.length) return;
+
+          const latestSha = data[0].sha;
+          const savedSha = localStorage.getItem(GITHUB_COMMIT_STORAGE_KEY);
+
+          if (!savedSha) {
+            // First visit — save the sha, no badge
+            localStorage.setItem(GITHUB_COMMIT_STORAGE_KEY, latestSha);
+          } else if (savedSha !== latestSha) {
+            // New commit detected — show update badge
+            showUpdateBadge(latestSha);
+          }
+        } catch (e) {
+          // Silent fail — network issue or API rate limit
+        }
+      }
+
+      function showUpdateBadge(newSha) {
+        const btn = document.getElementById("refresh-btn");
+        if (btn) {
+          btn.classList.add("has-update");
+          btn.title =
+            "🔴 নতুন আপডেট পাওয়া গেছে! GitHub থেকে Playlist আপডেট করতে ক্লিক করুন";
+          btn.innerHTML = `<i class="fa-solid fa-rotate"></i> Refresh <span class="update-dot"></span>`;
+          btn.dataset.newSha = newSha;
+        }
+        // Also show badge on mobile bottom nav
+        const mobileBtn = document.getElementById("bnav-refresh");
+        if (mobileBtn) {
+          mobileBtn.style.color = "#ef4444";
+          const icon = document.getElementById("bnav-refresh-icon");
+          if (icon) icon.style.color = "#ef4444";
+        }
+      }
+
+      function clearUpdateBadge(sha) {
+        const btn = document.getElementById("refresh-btn");
+        if (btn) {
+          btn.classList.remove("has-update");
+          btn.title = "GitHub থেকে Playlist আপডেট করুন";
+          btn.innerHTML = `<i class="fa-solid fa-rotate"></i> Refresh`;
+          delete btn.dataset.newSha;
+        }
+        if (sha) localStorage.setItem(GITHUB_COMMIT_STORAGE_KEY, sha);
+        // Clear mobile badge
+        const mobileBtn = document.getElementById("bnav-refresh");
+        if (mobileBtn) mobileBtn.style.color = "";
+        const icon = document.getElementById("bnav-refresh-icon");
+        if (icon) icon.style.color = "";
+      }
+
+      // ========== REFRESH PLAYLIST (GitHub থেকে) ==========
+      async function refreshPlaylist() {
+        const btn = document.getElementById("refresh-btn");
+        const newSha = btn?.dataset.newSha;
+
+        // Only refresh default playlist from GitHub
+        const targetPlaylist = savedPlaylists.find(
+          (p) => p.name === DEFAULT_PLAYLIST_NAME,
+        );
+
+        if (
+          !targetPlaylist ||
+          !targetPlaylist.source ||
+          targetPlaylist.source === "pasted"
+        ) {
+          alert(
+            "শুধুমাত্র URL থেকে লোড করা default playlist refresh করা যাবে।",
+          );
+          return;
+        }
+
+        // Show loading state on button
+        if (btn) {
+          btn.classList.remove("has-update");
+          btn.classList.add("refreshing");
+          btn.innerHTML = `<i class="fa-solid fa-rotate"></i> Updating...`;
+        }
+
+        loadingOverlay.classList.remove("hidden");
+
+        try {
+          // Clear custom M3U so fresh data is loaded
+          localStorage.removeItem(getCustomM3UKey(DEFAULT_PLAYLIST_NAME));
+
+          const resp = await fetch(
+            targetPlaylist.source + "?t=" + Date.now(), // cache bust
+          );
+          if (!resp.ok) throw new Error("Fetch failed");
+          const text = await resp.text();
+          const parsed = parseM3U(text);
+          if (!parsed.length) throw new Error("Empty playlist");
+
+          // Apply deleted filter
+          loadDeletedChannels(DEFAULT_PLAYLIST_NAME);
+          sourceChannels = parsed;
+          channels = applyDeletedFilter(parsed);
+          processGroups();
+          currentGroup = null;
+
+          // Update saved entry
+          const idx = savedPlaylists.findIndex(
+            (p) => p.name === DEFAULT_PLAYLIST_NAME,
+          );
+          if (idx >= 0) {
+            savedPlaylists[idx].count = parsed.length;
+            savedPlaylists[idx].savedAt = Date.now();
+            localStorage.setItem(
+              "m3u_playlists",
+              JSON.stringify(savedPlaylists),
+            );
+          }
+          localStorage.setItem(
+            "m3u_last",
+            JSON.stringify({ channels, playlistName: DEFAULT_PLAYLIST_NAME }),
+          );
+
+          renderSidebar();
+          renderDeletedPanel();
+          activePlaylistName = DEFAULT_PLAYLIST_NAME;
+          localStorage.setItem("m3u_active_playlist", DEFAULT_PLAYLIST_NAME);
+
+          // Clear update badge and save new SHA
+          clearUpdateBadge(newSha || null);
+
+          // If we had a new SHA, also verify latest from API
+          if (newSha) {
+            localStorage.setItem(GITHUB_COMMIT_STORAGE_KEY, newSha);
+          }
+
+          // Show success flash
+          showToast(
+            `✅ Playlist আপডেট হয়েছে! ${channels.length} টি চ্যানেল লোড হয়েছে।`,
+          );
+        } catch (e) {
+          showToast("❌ আপডেট করা যায়নি! নেটওয়ার্ক চেক করুন।", true);
+        }
+
+        loadingOverlay.classList.add("hidden");
+        if (btn) {
+          btn.classList.remove("refreshing");
+          btn.innerHTML = `<i class="fa-solid fa-rotate"></i> Refresh`;
+        }
+      }
+
+      // ========== RESTART PLAYER ==========
+      function restartPlayer() {
+        if (
+          !confirm(
+            "Player রিস্টার্ট করবেন?\n\nএতে শুধু video player রিলোড হবে। আপনার saved playlists, favorites এবং settings ঠিক থাকবে।",
+          )
+        )
+          return;
+
+        // Stop current playback
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+        video.pause();
+        video.src = "";
+
+        // Reset player state
+        currentIndex = -1;
+        noSource.classList.remove("hidden");
+        controls.classList.add("hidden");
+        document.getElementById("ch-title").textContent = "চ্যানেল নাম";
+
+        // Reload the active playlist
+        const targetPlaylist =
+          savedPlaylists.find((p) => p.name === activePlaylistName) ||
+          savedPlaylists[0];
+
+        if (targetPlaylist) {
+          showToast("🔄 Player রিস্টার্ট হচ্ছে...");
+          loadPlaylistByEntry(targetPlaylist, false).then(() => {
+            showToast("✅ Player রিস্টার্ট সম্পন্ন!");
+          });
+        } else {
+          showToast("✅ Player রিস্টার্ট সম্পন্ন!");
+        }
+      }
+
+      // ========== TOAST NOTIFICATION ==========
+      function showToast(msg, isError = false) {
+        let toast = document.getElementById("__toast");
+        if (!toast) {
+          toast = document.createElement("div");
+          toast.id = "__toast";
+          toast.style.cssText = `
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: var(--bg-surface); border: 0.5px solid var(--border-color);
+            color: var(--text-main); padding: 10px 20px; border-radius: 10px;
+            font-size: 13px; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+            max-width: 90vw; text-align: center; white-space: nowrap;
+          `;
+          document.body.appendChild(toast);
+        }
+        if (isError) toast.style.borderColor = "#ef4444";
+        else toast.style.borderColor = "var(--accent)";
+        toast.textContent = msg;
+        toast.style.opacity = "1";
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => (toast.style.opacity = "0"), 3500);
+      }
 
       const video = document.getElementById("video");
       const controls = document.getElementById("controls");
@@ -1559,6 +2260,146 @@
       }
       function applyDeletedFilter(chArr) {
         return chArr.filter((ch) => !deletedChannelUrls.includes(ch.url));
+      }
+
+      // sourceChannels = the full original list from GitHub/source (never filtered)
+
+      // Build the list of deleted channels that still exist in source
+      function getRecoverableDeleted() {
+        return sourceChannels.filter((ch) =>
+          deletedChannelUrls.includes(ch.url),
+        );
+      }
+
+      // ========== DELETED PANEL UI ==========
+      let deletedPanelOpen = false;
+
+      function toggleDeletedPanel() {
+        deletedPanelOpen = !deletedPanelOpen;
+        const panel = document.getElementById("deleted-panel");
+        panel.classList.toggle("open", deletedPanelOpen);
+      }
+
+      function renderDeletedPanel() {
+        const recoverable = getRecoverableDeleted();
+        const badge = document.getElementById("deleted-count-badge");
+        const panel = document.getElementById("deleted-panel");
+        const inner = document.getElementById("deleted-list-inner");
+        const empty = document.getElementById("deleted-empty");
+
+        badge.textContent = recoverable.length;
+
+        if (recoverable.length === 0) {
+          panel.style.display = "none";
+          panel.classList.remove("open");
+          deletedPanelOpen = false;
+          return;
+        }
+
+        // Show panel and auto-open it
+        panel.style.display = "";
+        panel.classList.add("open");
+        deletedPanelOpen = true;
+
+        // Re-render list items (keep empty div, remove old ch items)
+        Array.from(inner.querySelectorAll(".del-ch-item")).forEach((el) =>
+          el.remove(),
+        );
+        empty.style.display = "none";
+
+        recoverable.forEach((ch) => {
+          const initials = ch.name.substring(0, 2).toUpperCase();
+          const div = document.createElement("div");
+          div.className = "del-ch-item";
+          div.innerHTML = `
+            <div class="del-ch-logo">${ch.logo ? `<img src="${ch.logo}" onerror="this.parentNode.textContent='${initials}'">` : initials}</div>
+            <div class="del-ch-info">
+              <div class="del-ch-name">${ch.name}</div>
+              ${ch.group ? `<div class="del-ch-group">${ch.group}</div>` : ""}
+            </div>
+            <button class="del-restore-btn" onclick="restoreChannel('${escUrl(ch.url)}')">
+              <i class="fa-solid fa-rotate-left"></i> Restore
+            </button>
+          `;
+          inner.appendChild(div);
+        });
+
+        // Sync mobile modal if open
+        const mobileOverlay = document.getElementById("mobile-deleted-overlay");
+        if (mobileOverlay && mobileOverlay.style.display === "flex") {
+          renderMobileDeletedModal();
+        }
+      }
+
+      function escUrl(url) {
+        return url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      }
+
+      function restoreChannel(url) {
+        // Remove from deleted list
+        deletedChannelUrls = deletedChannelUrls.filter((u) => u !== url);
+        saveDeletedChannels(activePlaylistName);
+
+        // Find the channel in sourceChannels and insert it back into channels
+        const ch = sourceChannels.find((c) => c.url === url);
+        if (ch) {
+          // Find its original position in source to insert in right order
+          const srcIdx = sourceChannels.findIndex((c) => c.url === url);
+          // Find the right insertion point in channels (first channel whose src index > srcIdx)
+          let insertAt = channels.length;
+          for (let i = 0; i < channels.length; i++) {
+            const ci = sourceChannels.findIndex(
+              (s) => s.url === channels[i].url,
+            );
+            if (ci > srcIdx) {
+              insertAt = i;
+              break;
+            }
+          }
+          channels.splice(insertAt, 0, ch);
+        }
+
+        // Update storage
+        saveCustomM3U(activePlaylistName, channels);
+        const pidx = savedPlaylists.findIndex(
+          (p) => p.name === activePlaylistName,
+        );
+        if (pidx >= 0) {
+          savedPlaylists[pidx].count = channels.length;
+          localStorage.setItem("m3u_playlists", JSON.stringify(savedPlaylists));
+        }
+
+        processGroups();
+        renderSidebar();
+        renderDeletedPanel();
+        showToast(`↩️ "${ch ? ch.name : "চ্যানেল"}" ফিরিয়ে আনা হয়েছে!`);
+      }
+
+      function restoreAllChannels() {
+        const recoverable = getRecoverableDeleted();
+        if (!recoverable.length) return;
+
+        // Clear all deleted
+        deletedChannelUrls = [];
+        saveDeletedChannels(activePlaylistName);
+
+        // Rebuild channels from source (apply no filter)
+        channels = [...sourceChannels];
+        saveCustomM3U(activePlaylistName, channels);
+
+        const pidx = savedPlaylists.findIndex(
+          (p) => p.name === activePlaylistName,
+        );
+        if (pidx >= 0) {
+          savedPlaylists[pidx].count = channels.length;
+          localStorage.setItem("m3u_playlists", JSON.stringify(savedPlaylists));
+        }
+
+        processGroups();
+        currentGroup = null;
+        renderSidebar();
+        renderDeletedPanel();
+        showToast(`↩️ ${recoverable.length} টি চ্যানেল পুনরুদ্ধার হয়েছে!`);
       }
 
       // ========== CUSTOM M3U (edited/modified playlist) ==========
@@ -1634,17 +2475,23 @@
         loadingOverlay.classList.remove("hidden");
 
         let parsed = null;
+        sourceChannels = [];
 
-        // Check if there's a custom edited M3U first
-        const customM3U = loadCustomM3U(p.name);
-        if (customM3U) {
-          parsed = parseM3U(customM3U);
-        } else if (p.source && p.source !== "pasted") {
+        // Always try to fetch fresh source first (to build sourceChannels for compare)
+        if (p.source && p.source !== "pasted") {
           try {
             const resp = await fetch(p.source);
             if (resp.ok) {
               const text = await resp.text();
               parsed = parseM3U(text);
+              sourceChannels = parsed; // save full source
+              // Persist sourceChannels so deleted panel works offline too
+              try {
+                localStorage.setItem(
+                  "m3u_source__" + p.name,
+                  JSON.stringify(sourceChannels),
+                );
+              } catch (e) {}
               // Update count
               const idx = savedPlaylists.findIndex((x) => x.name === p.name);
               if (idx >= 0) {
@@ -1658,16 +2505,44 @@
           } catch (e) {}
         }
 
+        // If fetch failed, try cached sourceChannels from localStorage
+        if (!sourceChannels.length) {
+          try {
+            const cached = localStorage.getItem("m3u_source__" + p.name);
+            if (cached) sourceChannels = JSON.parse(cached);
+          } catch (e) {}
+        }
+
+        // Check if there's a custom edited M3U — use it for channel list but keep sourceChannels for compare
+        const customM3U = loadCustomM3U(p.name);
+        if (customM3U) {
+          parsed = parseM3U(customM3U);
+          // If still no sourceChannels (pasted/no URL), use custom as source base
+          if (!sourceChannels.length) sourceChannels = parsed;
+        }
+
         if (!parsed && p.rawContent) {
           parsed = parseM3U(p.rawContent);
+          if (!sourceChannels.length) {
+            sourceChannels = parsed;
+            try {
+              localStorage.setItem(
+                "m3u_source__" + p.name,
+                JSON.stringify(sourceChannels),
+              );
+            } catch (e) {}
+          }
         }
 
         if (parsed && parsed.length) {
           // Apply deleted filter
-          channels = applyDeletedFilter(parsed);
+          channels = applyDeletedFilter(
+            sourceChannels.length ? sourceChannels : parsed,
+          );
           processGroups();
           currentGroup = null;
           renderSidebar();
+          renderDeletedPanel();
           localStorage.setItem(
             "m3u_last",
             JSON.stringify({ channels, playlistName: p.name }),
@@ -1696,37 +2571,43 @@
         loadDeletedChannels(name);
       }
 
-      // ========== DELETE CHANNEL ==========
+      // ========== DELETE CHANNEL WITH UNDO ==========
+      let _undoTimer = null;
+      let _deletedSnapshot = null; // { ch, idx, wasPlaying, prevCurrentIndex, channels, deletedUrls, playlistCount }
+
       function deleteChannel(event, idx) {
         event.stopPropagation();
         const ch = channels[idx];
         if (!ch) return;
-        if (!confirm(`"${ch.name}" চ্যানেলটি playlist থেকে মুছে ফেলবেন?`))
-          return;
 
-        // Add to deleted list
+        // Cancel any pending previous undo
+        if (_undoTimer) {
+          clearTimeout(_undoTimer);
+          _undoTimer = null;
+          commitDelete(); // commit previous pending delete before new one
+        }
+
+        const wasPlaying = currentIndex === idx;
+        const prevCurrentIndex = currentIndex;
+
+        // Save snapshot for undo
+        _deletedSnapshot = {
+          ch,
+          idx,
+          wasPlaying,
+          prevCurrentIndex,
+          channelsSnapshot: [...channels],
+          deletedUrlsSnapshot: [...deletedChannelUrls],
+          playlistName: activePlaylistName,
+        };
+
+        // Optimistically remove from UI
         if (!deletedChannelUrls.includes(ch.url)) {
           deletedChannelUrls.push(ch.url);
         }
-        saveDeletedChannels(activePlaylistName);
-
-        // Remove from channels array
         channels.splice(idx, 1);
 
-        // Save updated custom M3U
-        saveCustomM3U(activePlaylistName, channels);
-
-        // Update saved playlist count
-        const pidx = savedPlaylists.findIndex(
-          (p) => p.name === activePlaylistName,
-        );
-        if (pidx >= 0) {
-          savedPlaylists[pidx].count = channels.length;
-          localStorage.setItem("m3u_playlists", JSON.stringify(savedPlaylists));
-        }
-
-        // If deleted channel was playing, stop
-        if (currentIndex === idx) {
+        if (wasPlaying) {
           currentIndex = -1;
           if (hls) {
             hls.destroy();
@@ -1741,6 +2622,73 @@
 
         processGroups();
         renderSidebar();
+        renderDeletedPanel();
+
+        // Show undo toast
+        showUndoToast(`"${ch.name}" মুছে ফেলা হয়েছে`);
+
+        _undoTimer = setTimeout(() => {
+          _undoTimer = null;
+          commitDelete();
+        }, 5000);
+      }
+
+      function showUndoToast(msg) {
+        const toast = document.getElementById("undo-toast");
+        const msgEl = document.getElementById("undo-msg");
+        const prog = document.getElementById("undo-progress");
+        msgEl.textContent = msg;
+        // Reset animation
+        prog.style.animation = "none";
+        prog.offsetHeight; // reflow
+        toast.classList.add("show");
+        prog.style.animation = "";
+      }
+
+      function hideUndoToast() {
+        document.getElementById("undo-toast").classList.remove("show");
+      }
+
+      function undoDeleteChannel() {
+        if (!_deletedSnapshot) return;
+        clearTimeout(_undoTimer);
+        _undoTimer = null;
+
+        // Restore channels and state
+        channels = _deletedSnapshot.channelsSnapshot;
+        deletedChannelUrls = _deletedSnapshot.deletedUrlsSnapshot;
+        currentIndex = _deletedSnapshot.prevCurrentIndex;
+        _deletedSnapshot = null;
+
+        processGroups();
+        renderSidebar();
+        hideUndoToast();
+
+        // Re-play if it was playing
+        if (currentIndex >= 0 && currentIndex < channels.length) {
+          loadChannel(currentIndex);
+        }
+        showToast("↩️ চ্যানেল পুনরুদ্ধার হয়েছে!");
+      }
+
+      function commitDelete() {
+        if (!_deletedSnapshot) return;
+        const snap = _deletedSnapshot;
+        _deletedSnapshot = null;
+
+        // Save to storage
+        saveDeletedChannels(snap.playlistName);
+        saveCustomM3U(snap.playlistName, channels);
+
+        const pidx = savedPlaylists.findIndex(
+          (p) => p.name === snap.playlistName,
+        );
+        if (pidx >= 0) {
+          savedPlaylists[pidx].count = channels.length;
+          localStorage.setItem("m3u_playlists", JSON.stringify(savedPlaylists));
+        }
+
+        hideUndoToast();
       }
 
       // ========== M3U EDITOR ==========
@@ -2031,9 +2979,10 @@
       function deleteSaved(i) {
         if (!confirm("এই playlist মুছে ফেলবেন?")) return;
         const p = savedPlaylists[i];
-        // Clean up custom M3U and deleted channels data
+        // Clean up custom M3U, deleted channels, and source cache
         localStorage.removeItem(getCustomM3UKey(p.name));
         localStorage.removeItem(getDeletedKey(p.name));
+        localStorage.removeItem("m3u_source__" + p.name);
         savedPlaylists.splice(i, 1);
         localStorage.setItem("m3u_playlists", JSON.stringify(savedPlaylists));
         renderSavedList();
@@ -2413,8 +3362,43 @@
           document.getElementById("bnav-playlist").classList.add("bnav-active");
           openM3UModal();
         } else if (action === "editor") {
-          document.getElementById("bnav-editor").classList.add("bnav-active");
+          document.getElementById("bnav-editor") &&
+            document.getElementById("bnav-editor").classList.add("bnav-active");
           openM3UEditor();
+        } else if (action === "deleted") {
+          document.getElementById("bnav-deleted") &&
+            document
+              .getElementById("bnav-deleted")
+              .classList.add("bnav-active");
+          openMobileDeletedModal();
+          setTimeout(
+            () =>
+              document.getElementById("bnav-deleted") &&
+              document
+                .getElementById("bnav-deleted")
+                .classList.remove("bnav-active"),
+            800,
+          );
+        } else if (action === "refresh") {
+          document.getElementById("bnav-refresh").classList.add("bnav-active");
+          refreshPlaylist();
+          setTimeout(
+            () =>
+              document
+                .getElementById("bnav-refresh")
+                .classList.remove("bnav-active"),
+            1000,
+          );
+        } else if (action === "restart") {
+          document.getElementById("bnav-restart").classList.add("bnav-active");
+          restartPlayer();
+          setTimeout(
+            () =>
+              document
+                .getElementById("bnav-restart")
+                .classList.remove("bnav-active"),
+            1000,
+          );
         } else if (action === "theme") {
           toggleTheme();
           // sync bottom nav theme icon
@@ -2503,11 +3487,19 @@
           saveDeletedChannels(name);
           localStorage.removeItem(getCustomM3UKey(name));
 
+          sourceChannels = parsed;
           channels = parsed;
           processGroups();
           currentGroup = null;
           saveToStorage(name, channels, url);
+          try {
+            localStorage.setItem(
+              "m3u_source__" + name,
+              JSON.stringify(sourceChannels),
+            );
+          } catch (e) {}
           renderSidebar();
+          renderDeletedPanel();
           if (channels.length > 0) loadChannel(0);
         } catch (e) {
           alert("প্লেলিস্ট লোড করা যায়নি! CORS সমস্যা অথবা ভুল URL হতে পারে।");
@@ -2529,17 +3521,75 @@
         saveDeletedChannels(name);
         localStorage.removeItem(getCustomM3UKey(name));
 
+        sourceChannels = parsed;
         channels = parsed;
         processGroups();
         currentGroup = null;
         saveToStorage(name, channels, "pasted", txt);
+        try {
+          localStorage.setItem(
+            "m3u_source__" + name,
+            JSON.stringify(sourceChannels),
+          );
+        } catch (e) {}
         renderSidebar();
+        renderDeletedPanel();
         closeModal();
         if (channels.length > 0) loadChannel(0);
       }
 
+      function openMobileDeletedModal() {
+        renderMobileDeletedModal();
+        document.getElementById("mobile-deleted-overlay").style.display =
+          "flex";
+      }
+      function closeMobileDeletedModal() {
+        document.getElementById("mobile-deleted-overlay").style.display =
+          "none";
+      }
+      function renderMobileDeletedModal() {
+        const recoverable = getRecoverableDeleted();
+        const badge = document.getElementById("mob-del-count-badge");
+        const list = document.getElementById("mob-del-list");
+        const empty = document.getElementById("mob-del-empty");
+
+        badge.textContent = recoverable.length;
+
+        // Clear old items
+        Array.from(list.querySelectorAll(".del-ch-item")).forEach((el) =>
+          el.remove(),
+        );
+
+        if (recoverable.length === 0) {
+          empty.style.display = "block";
+          return;
+        }
+        empty.style.display = "none";
+
+        recoverable.forEach((ch) => {
+          const initials = ch.name.substring(0, 2).toUpperCase();
+          const div = document.createElement("div");
+          div.className = "del-ch-item";
+          div.innerHTML = `
+            <div class="del-ch-logo">${ch.logo ? `<img src="${ch.logo}" onerror="this.parentNode.textContent='${initials}'">` : initials}</div>
+            <div class="del-ch-info">
+              <div class="del-ch-name">${ch.name}</div>
+              ${ch.group ? `<div class="del-ch-group">${ch.group}</div>` : ""}
+            </div>
+            <button class="del-restore-btn" onclick="restoreChannel('${escUrl(ch.url)}');renderMobileDeletedModal();">
+              <i class="fa-solid fa-rotate-left"></i> Restore
+            </button>
+          `;
+          list.appendChild(div);
+        });
+      }
+
       initTheme();
-      loadSaved();
+      loadSaved().then(() => {
+        // Check for GitHub updates after initial load
+        // Small delay so page renders first
+        setTimeout(checkGitHubUpdate, 2000);
+      });
     </script>
   </body>
 </html>
