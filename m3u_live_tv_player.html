@@ -1693,6 +1693,48 @@
                       oninput="setVolume(this.value)"
                     />
                   </div>
+                  <div
+                    id="audio-track-wrap"
+                    style="position: relative; display: none"
+                  >
+                    <button
+                      class="cbtn"
+                      id="audio-track-btn"
+                      onclick="toggleAudioMenu()"
+                      title="Audio Track পরিবর্তন করুন"
+                    >
+                      <i class="fa-solid fa-language"></i>
+                    </button>
+                    <div
+                      id="audio-track-menu"
+                      style="
+                        display: none;
+                        position: absolute;
+                        bottom: calc(100% + 8px);
+                        right: 0;
+                        background: var(--bg-surface);
+                        border: 1px solid var(--border-color);
+                        border-radius: 8px;
+                        min-width: 150px;
+                        padding: 6px 0;
+                        z-index: 200;
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                      "
+                    >
+                      <div
+                        style="
+                          padding: 6px 12px 4px;
+                          font-size: 10px;
+                          color: var(--text-muted);
+                          text-transform: uppercase;
+                          letter-spacing: 0.5px;
+                        "
+                      >
+                        Audio Track
+                      </div>
+                      <div id="audio-track-list"></div>
+                    </div>
+                  </div>
                   <button
                     class="cbtn"
                     id="pip-btn"
@@ -2480,9 +2522,19 @@
         // Always try to fetch fresh source first (to build sourceChannels for compare)
         if (p.source && p.source !== "pasted") {
           try {
-            const resp = await fetch(p.source);
-            if (resp.ok) {
-              const text = await resp.text();
+            let text;
+            try {
+              const resp = await fetch(p.source);
+              if (!resp.ok) throw new Error("direct_fail");
+              text = await resp.text();
+            } catch {
+              const proxyUrl =
+                "https://corsproxy.io/?" + encodeURIComponent(p.source);
+              const resp2 = await fetch(proxyUrl);
+              if (!resp2.ok) throw new Error("proxy_fail");
+              text = await resp2.text();
+            }
+            if (text) {
               parsed = parseM3U(text);
               sourceChannels = parsed; // save full source
               // Persist sourceChannels so deleted panel works offline too
@@ -3019,6 +3071,159 @@
         }
       }
 
+      // ====== PROXY CONFIG ======
+      // vercel proxy URL — mkv/mp4 ফাইল এখান দিয়ে চলবে
+      const PROXY_BASE = "https://movie-m3u-hazel.vercel.app/proxy?url=";
+
+      function buildProxyUrl(url) {
+        return PROXY_BASE + encodeURIComponent(url);
+      }
+
+      function isDirectVideoFile(url) {
+        return /\.(mkv|mp4|avi|mov|webm)(\?|$)/i.test(url);
+      }
+
+      // ====== AUDIO TRACK SYSTEM ======
+      // Tracks detected for the current direct video (MKV/MP4)
+      let _directAudioTracks = []; // [{index, label, lang, title}, ...]
+      let _activeAudioTrack = 0; // currently selected track index
+      let _currentDirectUrl = ""; // the raw (non-proxied) video URL
+
+      const AUDIOINFO_BASE =
+        "https://movie-m3u-hazel.vercel.app/audioinfo?url=";
+
+      // Fetch audio tracks for a direct video file via /audioinfo
+      async function fetchDirectAudioTracks(rawUrl) {
+        _directAudioTracks = [];
+        _activeAudioTrack = 0;
+        _currentDirectUrl = rawUrl;
+        try {
+          const resp = await fetch(AUDIOINFO_BASE + encodeURIComponent(rawUrl));
+          if (!resp.ok) return;
+          const data = await resp.json();
+          if (data.tracks && data.tracks.length > 0) {
+            _directAudioTracks = data.tracks;
+          }
+        } catch (e) {
+          // Silent — no audio info available
+        }
+        renderDirectAudioUI();
+      }
+
+      // Render audio track buttons for direct video
+      function renderDirectAudioUI() {
+        const wrap = document.getElementById("audio-track-wrap");
+        const list = document.getElementById("audio-track-list");
+        if (_directAudioTracks.length < 2) {
+          wrap.style.display = "none";
+          return;
+        }
+        wrap.style.display = "flex";
+        list.innerHTML = _directAudioTracks
+          .map(
+            (t) =>
+              `<div class="audio-track-item" onclick="selectDirectAudio(${t.index})" style="
+            padding:7px 14px;cursor:pointer;font-size:13px;
+            color:${_activeAudioTrack === t.index ? "var(--accent)" : "var(--text-main)"};
+            background:${_activeAudioTrack === t.index ? "rgba(167,139,250,0.1)" : "transparent"};
+            display:flex;align-items:center;gap:8px;
+          ">
+            ${
+              _activeAudioTrack === t.index
+                ? '<i class="fa-solid fa-check" style="font-size:10px;color:var(--accent)"></i>'
+                : '<span style="width:14px;display:inline-block"></span>'
+            }
+            ${t.label || t.lang || "Track " + (t.index + 1)}
+          </div>`,
+          )
+          .join("");
+      }
+
+      // Switch direct video to a different audio track via proxy ?audio=N
+      function selectDirectAudio(idx) {
+        if (!_currentDirectUrl) return;
+        _activeAudioTrack = idx;
+        closeAudioMenu();
+        renderDirectAudioUI();
+
+        // Save current playback time
+        const savedTime = video.currentTime;
+
+        // Build new proxy URL with selected audio track
+        const newProxyUrl =
+          PROXY_BASE + encodeURIComponent(_currentDirectUrl) + "&audio=" + idx;
+
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+        video.src = newProxyUrl;
+        video.load();
+        video.currentTime = savedTime;
+        video.play().catch(() => {});
+        showToast(
+          "🎵 Audio: " +
+            (_directAudioTracks[idx]?.label || "Track " + (idx + 1)),
+        );
+      }
+
+      // ====== HLS AUDIO TRACK UI (for .m3u8 streams) ======
+      function updateHlsAudioUI() {
+        const wrap = document.getElementById("audio-track-wrap");
+        const list = document.getElementById("audio-track-list");
+        if (!hls || !hls.audioTracks || hls.audioTracks.length < 2) {
+          wrap.style.display = "none";
+          return;
+        }
+        wrap.style.display = "flex";
+        list.innerHTML = hls.audioTracks
+          .map(
+            (t, i) =>
+              `<div class="audio-track-item" data-idx="${i}" onclick="selectHlsAudio(${i})" style="
+            padding:7px 14px;cursor:pointer;font-size:13px;
+            color:${hls.audioTrack === i ? "var(--accent)" : "var(--text-main)"};
+            background:${hls.audioTrack === i ? "rgba(167,139,250,0.1)" : "transparent"};
+            display:flex;align-items:center;gap:8px;
+          ">
+            ${
+              hls.audioTrack === i
+                ? '<i class="fa-solid fa-check" style="font-size:10px;color:var(--accent)"></i>'
+                : '<span style="width:14px;display:inline-block"></span>'
+            }
+            ${t.name || t.lang || "Track " + (i + 1)}
+          </div>`,
+          )
+          .join("");
+      }
+
+      function selectHlsAudio(idx) {
+        if (!hls) return;
+        hls.audioTrack = idx;
+        closeAudioMenu();
+        setTimeout(updateHlsAudioUI, 200);
+        showToast(
+          "🎵 Audio: " +
+            (hls.audioTracks[idx]?.name ||
+              hls.audioTracks[idx]?.lang ||
+              "Track " + (idx + 1)),
+        );
+      }
+
+      function toggleAudioMenu() {
+        const menu = document.getElementById("audio-track-menu");
+        menu.style.display = menu.style.display === "none" ? "block" : "none";
+      }
+
+      function closeAudioMenu() {
+        document.getElementById("audio-track-menu").style.display = "none";
+      }
+
+      // Close audio menu on outside click
+      document.addEventListener("click", (e) => {
+        const wrap = document.getElementById("audio-track-wrap");
+        if (wrap && !wrap.contains(e.target)) closeAudioMenu();
+      });
+
       function loadChannel(idx) {
         if (idx < 0 || idx >= channels.length) return;
         currentIndex = idx;
@@ -3036,27 +3241,94 @@
         showChFlash(ch.name, idx + 1);
         updateMediaSession(ch.name);
 
+        // Reset audio UI
+        document.getElementById("audio-track-wrap").style.display = "none";
+        closeAudioMenu();
+        _directAudioTracks = [];
+        _activeAudioTrack = 0;
+        _currentDirectUrl = "";
+
         if (hls) {
           hls.destroy();
           hls = null;
         }
 
-        if (Hls.isSupported() && ch.url.includes(".m3u8")) {
+        let url = ch.url;
+
+        // Xtream Codes: /live/user/pass/ID.ts -> /live/user/pass/ID.m3u8
+        if (/\/live\/[^/]+\/[^/]+\/[^/]+\.ts(\?|$)/i.test(url)) {
+          url = url.replace(
+            /(\/live\/[^/]+\/[^/]+\/[^/]+)\.ts(\?.*)?$/,
+            "$1.m3u8",
+          );
+        }
+
+        const isHlsStream =
+          url.includes(".m3u8") ||
+          (/\/(live|stream|hls)\//i.test(url) && !isDirectVideoFile(url));
+
+        function startHls(streamUrl) {
+          if (hls) {
+            hls.destroy();
+            hls = null;
+          }
           hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-          hls.loadSource(ch.url);
+          hls.loadSource(streamUrl);
           hls.attachMedia(video);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             video.play().catch(() => {});
             loadingOverlay.classList.add("hidden");
+            updateHlsAudioUI();
           });
+          hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, updateHlsAudioUI);
+          hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, updateHlsAudioUI);
           hls.on(Hls.Events.ERROR, (e, d) => {
             if (d.fatal) {
-              loadingOverlay.classList.add("hidden");
-              updateMediaSession(ch.name);
+              if (!streamUrl.includes("corsproxy.io")) {
+                // CORS block হলে proxy দিয়ে retry
+                const proxied =
+                  "https://corsproxy.io/?" + encodeURIComponent(streamUrl);
+                startHls(proxied);
+              } else {
+                loadingOverlay.classList.add("hidden");
+                updateMediaSession(ch.name);
+              }
             }
           });
+        }
+
+        if (Hls.isSupported() && isHlsStream) {
+          startHls(url);
+        } else if (isDirectVideoFile(url)) {
+          // MKV/MP4: proxy দিয়ে চালাও (default = track 0)
+          const proxyUrl = buildProxyUrl(url);
+          video.src = proxyUrl;
+          video.load();
+          video
+            .play()
+            .then(() => {
+              loadingOverlay.classList.add("hidden");
+            })
+            .catch((err) => {
+              console.warn("Proxy play failed:", err);
+              // fallback: direct URL try
+              video.src = url;
+              video.load();
+              video
+                .play()
+                .then(() => {
+                  loadingOverlay.classList.add("hidden");
+                })
+                .catch(() => {
+                  loadingOverlay.classList.add("hidden");
+                  updateMediaSession(ch.name);
+                });
+            });
+
+          // Fetch audio track info from server asynchronously (non-blocking)
+          fetchDirectAudioTracks(url);
         } else {
-          video.src = ch.url;
+          video.src = url;
           video
             .play()
             .then(() => {
@@ -3504,9 +3776,18 @@
         loadingOverlay.classList.remove("hidden");
         closeModal();
         try {
-          const resp = await fetch(url);
-          if (!resp.ok) throw new Error();
-          const text = await resp.text();
+          let text;
+          try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error("direct_fail");
+            text = await resp.text();
+          } catch (directErr) {
+            // CORS block হলে proxy দিয়ে try করো
+            const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(url);
+            const resp2 = await fetch(proxyUrl);
+            if (!resp2.ok) throw new Error("proxy_fail");
+            text = await resp2.text();
+          }
           const parsed = parseM3U(text);
           if (!parsed.length) throw new Error();
 
