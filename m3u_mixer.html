@@ -141,13 +141,197 @@
         </div>
       </div>
 
-      <!-- Step 4: GitHub Push Configuration -->
+      <!-- Step 4: GitHub File Viewer & Editor -->
+      <div
+        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700"
+        id="githubViewerSection"
+      >
+        <h2 class="text-xl font-bold mb-1 text-indigo-300">
+          ৪. GitHub থেকে Existing File দেখো ও Edit করো
+        </h2>
+        <p class="text-xs text-gray-500 mb-4">
+          * Token ও repo info একবার দিলে browser মনে রাখবে।
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">GitHub PAT:</label>
+            <input
+              type="password"
+              id="viewerToken"
+              placeholder="ghp_xxxxxxxxxxxx"
+              class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1"
+              >GitHub Username:</label
+            >
+            <input
+              type="text"
+              id="viewerUser"
+              placeholder="username"
+              class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1"
+              >Repository Name:</label
+            >
+            <input
+              type="text"
+              id="viewerRepo"
+              placeholder="MovieM3u"
+              class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1"
+              >File Name
+              <span class="text-gray-500 font-normal"
+                >(ফাঁকা রাখলে সব file দেখাবে)</span
+              >:</label
+            >
+            <input
+              type="text"
+              id="viewerFileName"
+              placeholder="playlist.m3u — ফাঁকা রাখলে repo-র সব file list হবে"
+              class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div class="flex gap-3 mb-4 flex-wrap">
+          <button
+            onclick="fetchGitHubFile()"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
+          >
+            📥 File লোড করো
+          </button>
+          <button
+            onclick="
+              browserHistory = [];
+              listRepoFiles('');
+            "
+            class="bg-purple-700 hover:bg-purple-600 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
+          >
+            📂 Repo Files দেখো
+          </button>
+          <button
+            onclick="saveViewerConfig()"
+            class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
+          >
+            💾 Config Save করো
+          </button>
+          <button
+            onclick="clearViewerConfig()"
+            class="bg-red-800 hover:bg-red-700 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
+          >
+            🗑️ Config মুছো
+          </button>
+        </div>
+
+        <!-- Repo File Browser -->
+        <div
+          id="repoFileListArea"
+          class="hidden mb-4 bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
+        >
+          <!-- Browser header: breadcrumbs + back -->
+          <div
+            class="flex items-center gap-2 px-3 py-2 bg-gray-800 border-b border-gray-700 flex-wrap"
+          >
+            <button
+              id="browserBackBtn"
+              onclick="browserGoBack()"
+              class="hidden bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white px-2.5 py-1 rounded text-xs font-semibold transition flex-shrink-0"
+            >
+              ← Back
+            </button>
+            <div
+              id="browserBreadcrumbs"
+              class="flex items-center gap-1 flex-wrap text-xs text-gray-400 min-w-0"
+            ></div>
+            <span
+              id="browserItemCount"
+              class="ml-auto text-xs text-gray-500 flex-shrink-0"
+            ></span>
+          </div>
+          <!-- File/folder list -->
+          <div
+            id="repoFileList"
+            class="divide-y divide-gray-800 max-h-72 overflow-y-auto"
+          ></div>
+        </div>
+
+        <!-- File Content Editor -->
+        <div id="viewerEditorArea" class="hidden">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-sm text-gray-400">
+              📄
+              <span
+                id="viewerFileLabel"
+                class="text-indigo-300 font-semibold"
+              ></span>
+              — <span id="viewerLineCount" class="text-gray-400"></span>
+            </p>
+            <div class="flex gap-2 flex-wrap justify-end">
+              <button
+                onclick="replaceViewerWithUpload()"
+                class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+              >
+                📂 Upload দিয়ে Replace করো
+              </button>
+              <button
+                onclick="appendUploadToViewer()"
+                class="bg-green-700 hover:bg-green-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+              >
+                ➕ Upload Append করো
+              </button>
+              <button
+                onclick="pushViewerContent()"
+                class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+              >
+                🚀 GitHub-এ Save করো
+              </button>
+              <button
+                onclick="openViewerFullscreen()"
+                class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+                title="Fullscreen"
+              >
+                ⛶ Fullscreen
+              </button>
+            </div>
+          </div>
+
+          <!-- Hidden file input for viewer upload -->
+          <input
+            type="file"
+            id="viewerUploadInput"
+            class="hidden"
+            onchange="handleViewerUpload(event)"
+          />
+
+          <textarea
+            id="viewerContentBox"
+            spellcheck="false"
+            class="w-full h-80 bg-gray-950 text-green-300 text-xs font-mono px-4 py-3 rounded-md border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+            placeholder="GitHub থেকে file লোড হলে এখানে দেখাবে..."
+          ></textarea>
+
+          <p
+            id="viewerStatus"
+            class="mt-2 text-sm font-medium text-center hidden"
+          ></p>
+        </div>
+      </div>
+
+      <!-- Step 5: GitHub Push Configuration -->
       <div
         class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700 hidden"
         id="githubSection"
       >
         <h2 class="text-xl font-bold mb-4 text-indigo-300">
-          ৪. ডিরেক্ট GitHub-এ আপলোড করো
+          ৫. ডিরেক্ট GitHub-এ আপলোড করো
         </h2>
 
         <!-- Mode Toggle -->
@@ -311,6 +495,46 @@
         </button>
         <p id="statusMsg" class="mt-3 text-center font-medium text-sm"></p>
       </div>
+    </div>
+
+    <!-- Fullscreen Editor Overlay -->
+    <div
+      id="fullscreenOverlay"
+      class="hidden fixed inset-0 z-50 bg-gray-950 flex flex-col"
+    >
+      <div
+        class="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 flex-shrink-0"
+      >
+        <p class="text-sm text-gray-300">
+          📄
+          <span id="fsFileLabel" class="text-indigo-300 font-semibold"></span> —
+          <span id="fsLineCount" class="text-gray-400"></span>
+        </p>
+        <div class="flex gap-2">
+          <button
+            onclick="pushFromFullscreen()"
+            class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+          >
+            🚀 GitHub-এ Save করো
+          </button>
+          <button
+            onclick="closeViewerFullscreen()"
+            class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+          >
+            ✕ Exit Fullscreen
+          </button>
+        </div>
+      </div>
+      <textarea
+        id="fsContentBox"
+        spellcheck="false"
+        class="flex-1 w-full bg-gray-950 text-green-300 text-xs font-mono px-4 py-3 focus:outline-none resize-none border-0"
+        placeholder="Content loading..."
+      ></textarea>
+      <p
+        id="fsStatus"
+        class="hidden px-4 py-2 text-sm font-medium text-center bg-gray-900 flex-shrink-0"
+      ></p>
     </div>
 
     <script>
@@ -697,7 +921,408 @@
         }
       }
 
-      window.addEventListener("DOMContentLoaded", loadOwnConfig);
+      // ── GitHub File Viewer ───────────────────────────────────
+      let viewerFileSHA = null;
+
+      function saveViewerConfig() {
+        localStorage.setItem(
+          "m3u_viewer_token",
+          document.getElementById("viewerToken").value.trim(),
+        );
+        localStorage.setItem(
+          "m3u_viewer_user",
+          document.getElementById("viewerUser").value.trim(),
+        );
+        localStorage.setItem(
+          "m3u_viewer_repo",
+          document.getElementById("viewerRepo").value.trim(),
+        );
+        localStorage.setItem(
+          "m3u_viewer_filename",
+          document.getElementById("viewerFileName").value.trim(),
+        );
+        showViewerStatus("✅ Viewer config saved!", "text-green-400");
+      }
+
+      function clearViewerConfig() {
+        [
+          "m3u_viewer_token",
+          "m3u_viewer_user",
+          "m3u_viewer_repo",
+          "m3u_viewer_filename",
+        ].forEach((k) => localStorage.removeItem(k));
+        ["viewerToken", "viewerUser", "viewerRepo", "viewerFileName"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+        showViewerStatus("🗑️ Config cleared!", "text-yellow-400");
+      }
+
+      function loadViewerConfig() {
+        const map = {
+          viewerToken: "m3u_viewer_token",
+          viewerUser: "m3u_viewer_user",
+          viewerRepo: "m3u_viewer_repo",
+          viewerFileName: "m3u_viewer_filename",
+        };
+        for (const [id, key] of Object.entries(map)) {
+          const val = localStorage.getItem(key);
+          if (val) document.getElementById(id).value = val;
+        }
+      }
+
+      async function fetchGitHubFile() {
+        const token = document.getElementById("viewerToken").value.trim();
+        const user = document.getElementById("viewerUser").value.trim();
+        const repo = document.getElementById("viewerRepo").value.trim();
+        const filename = document.getElementById("viewerFileName").value.trim();
+
+        if (!token || !user || !repo) {
+          alert("দয়া করে Token, Username ও Repo name দাও!");
+          return;
+        }
+
+        // No filename → open file browser at root
+        if (!filename) {
+          browserHistory = [];
+          listRepoFiles("");
+          return;
+        }
+
+        showViewerStatus("⏳ GitHub থেকে file লোড হচ্ছে...", "text-amber-400");
+
+        try {
+          const res = await fetch(
+            `https://api.github.com/repos/${user}/${repo}/contents/${filename}`,
+            {
+              headers: { Authorization: `token ${token}` },
+            },
+          );
+          if (!res.ok) {
+            const err = await res.json();
+            showViewerStatus(`❌ Error: ${err.message}`, "text-red-400");
+            return;
+          }
+          const data = await res.json();
+          viewerFileSHA = data.sha;
+          const content = decodeURIComponent(
+            escape(atob(data.content.replace(/\n/g, ""))),
+          );
+          const lines = content.split("\n").length;
+
+          document.getElementById("viewerContentBox").value = content;
+          document.getElementById("viewerFileLabel").textContent = filename;
+          document.getElementById("viewerLineCount").textContent =
+            `${lines} লাইন`;
+          document
+            .getElementById("viewerEditorArea")
+            .classList.remove("hidden");
+          showViewerStatus("✅ File সফলভাবে লোড হয়েছে!", "text-green-400");
+        } catch (e) {
+          showViewerStatus(`❌ Error: ${e.message}`, "text-red-400");
+        }
+      }
+
+      function replaceViewerWithUpload() {
+        const input = document.getElementById("viewerUploadInput");
+        input.dataset.mode = "replace";
+        input.click();
+      }
+
+      function appendUploadToViewer() {
+        const input = document.getElementById("viewerUploadInput");
+        input.dataset.mode = "append";
+        input.click();
+      }
+
+      async function handleViewerUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const mode = event.target.dataset.mode;
+        const text = await file.text();
+
+        const box = document.getElementById("viewerContentBox");
+        if (mode === "replace") {
+          box.value = text;
+          showViewerStatus(
+            "📂 Upload দিয়ে replace করা হয়েছে। এখন GitHub-এ Save করো।",
+            "text-yellow-300",
+          );
+        } else {
+          const existing = box.value.trimEnd();
+          const newBlock = text.replace(/^#EXTM3U\r?\n?/, "").trimStart();
+          box.value = existing + "\n\n" + newBlock;
+          showViewerStatus(
+            "➕ Upload append করা হয়েছে। এখন GitHub-এ Save করো।",
+            "text-green-300",
+          );
+        }
+        event.target.value = ""; // reset input
+      }
+
+      async function pushViewerContent() {
+        const token = document.getElementById("viewerToken").value.trim();
+        const user = document.getElementById("viewerUser").value.trim();
+        const repo = document.getElementById("viewerRepo").value.trim();
+        const filename = document.getElementById("viewerFileName").value.trim();
+        const content = document.getElementById("viewerContentBox").value;
+
+        if (!token || !user || !repo || !filename) {
+          alert("দয়া করে সব field পূরণ করো!");
+          return;
+        }
+
+        showViewerStatus("⏳ GitHub-এ save হচ্ছে...", "text-amber-400");
+
+        const base64Content = btoa(unescape(encodeURIComponent(content)));
+        const bodyData = {
+          message: `Updated ${filename} via M3U Mixer editor`,
+          content: base64Content,
+        };
+        if (viewerFileSHA) bodyData.sha = viewerFileSHA;
+
+        try {
+          const res = await fetch(
+            `https://api.github.com/repos/${user}/${repo}/contents/${filename}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `token ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(bodyData),
+            },
+          );
+          if (res.ok) {
+            const data = await res.json();
+            viewerFileSHA = data.content.sha;
+            const lines = content.split("\n").length;
+            document.getElementById("viewerLineCount").textContent =
+              `${lines} লাইন`;
+            showViewerStatus(
+              "🚀 সাবাশ! GitHub-এ সফলভাবে save হয়ে গেছে ✅",
+              "text-green-400",
+            );
+          } else {
+            const err = await res.json();
+            showViewerStatus(`❌ Error: ${err.message}`, "text-red-400");
+          }
+        } catch (e) {
+          showViewerStatus(`❌ Error: ${e.message}`, "text-red-400");
+        }
+      }
+
+      function showViewerStatus(msg, colorClass) {
+        const el = document.getElementById("viewerStatus");
+        el.textContent = msg;
+        el.className = `mt-2 text-sm font-medium text-center ${colorClass}`;
+        el.classList.remove("hidden");
+        setTimeout(() => el.classList.add("hidden"), 4000);
+      }
+
+      // ── Repo File Browser ────────────────────────────────────
+      let browserHistory = []; // stack of paths visited
+      let currentBrowserPath = "";
+
+      async function listRepoFiles(path) {
+        const token = document.getElementById("viewerToken").value.trim();
+        const user = document.getElementById("viewerUser").value.trim();
+        const repo = document.getElementById("viewerRepo").value.trim();
+
+        if (!token || !user || !repo) {
+          alert("দয়া করে Token, Username ও Repo name দাও!");
+          return;
+        }
+
+        const browsePath = path !== undefined ? path : "";
+        showViewerStatus("⏳ লোড হচ্ছে...", "text-amber-400");
+
+        try {
+          const apiPath = browsePath ? `contents/${browsePath}` : `contents`;
+          const res = await fetch(
+            `https://api.github.com/repos/${user}/${repo}/${apiPath}`,
+            {
+              headers: { Authorization: `token ${token}` },
+            },
+          );
+          if (!res.ok) {
+            const err = await res.json();
+            showViewerStatus(`❌ Error: ${err.message}`, "text-red-400");
+            return;
+          }
+          const items = await res.json();
+
+          // Sort: folders first, then files, both alphabetically
+          items.sort((a, b) => {
+            if (a.type === b.type) return a.name.localeCompare(b.name);
+            return a.type === "dir" ? -1 : 1;
+          });
+
+          currentBrowserPath = browsePath;
+          renderBrowser(items, browsePath);
+          document
+            .getElementById("repoFileListArea")
+            .classList.remove("hidden");
+
+          const fileCount = items.filter((i) => i.type === "file").length;
+          const dirCount = items.filter((i) => i.type === "dir").length;
+          showViewerStatus(
+            `✅ ${dirCount} folder, ${fileCount} file পাওয়া গেছে।`,
+            "text-green-400",
+          );
+        } catch (e) {
+          showViewerStatus(`❌ Error: ${e.message}`, "text-red-400");
+        }
+      }
+
+      function renderBrowser(items, currentPath) {
+        // Breadcrumbs
+        const breadcrumbEl = document.getElementById("browserBreadcrumbs");
+        breadcrumbEl.innerHTML = "";
+
+        const parts = currentPath ? currentPath.split("/") : [];
+        // Root crumb
+        const rootSpan = document.createElement("span");
+        rootSpan.innerHTML = `<button onclick="browserNavigateTo('')" class="hover:text-indigo-400 transition">📁 root</button>`;
+        breadcrumbEl.appendChild(rootSpan);
+
+        parts.forEach((part, idx) => {
+          const sep = document.createElement("span");
+          sep.textContent = "/";
+          sep.className = "text-gray-600";
+          breadcrumbEl.appendChild(sep);
+
+          const pathUpToHere = parts.slice(0, idx + 1).join("/");
+          const crumb = document.createElement("span");
+          if (idx === parts.length - 1) {
+            crumb.textContent = part;
+            crumb.className = "text-indigo-300 font-semibold";
+          } else {
+            crumb.innerHTML = `<button onclick="browserNavigateTo('${pathUpToHere}')" class="hover:text-indigo-400 transition">${part}</button>`;
+          }
+          breadcrumbEl.appendChild(crumb);
+        });
+
+        // Back button
+        const backBtn = document.getElementById("browserBackBtn");
+        if (browserHistory.length > 0) {
+          backBtn.classList.remove("hidden");
+        } else {
+          backBtn.classList.add("hidden");
+        }
+
+        // Item count
+        const fileCount = items.filter((i) => i.type === "file").length;
+        const dirCount = items.filter((i) => i.type === "dir").length;
+        document.getElementById("browserItemCount").textContent =
+          `${dirCount} folder · ${fileCount} file`;
+
+        // File/folder list
+        const listEl = document.getElementById("repoFileList");
+        listEl.innerHTML = "";
+
+        if (items.length === 0) {
+          listEl.innerHTML = `<div class="px-4 py-6 text-center text-gray-500 text-sm">এই folder খালি</div>`;
+          return;
+        }
+
+        items.forEach((item) => {
+          const row = document.createElement("div");
+          row.className =
+            "flex items-center gap-3 px-4 py-2.5 hover:bg-gray-800 cursor-pointer transition group";
+
+          if (item.type === "dir") {
+            row.innerHTML = `
+              <span class="text-yellow-400 text-base flex-shrink-0">📁</span>
+              <span class="text-gray-200 text-sm font-medium group-hover:text-white flex-1 truncate">${item.name}</span>
+              <span class="text-gray-600 text-xs flex-shrink-0">→</span>
+            `;
+            row.onclick = () => browserNavigateTo(item.path);
+          } else {
+            const ext = item.name.split(".").pop().toLowerCase();
+            const icon = ["m3u", "m3u8"].includes(ext)
+              ? "📺"
+              : ext === "txt"
+                ? "📝"
+                : "📄";
+            row.innerHTML = `
+              <span class="text-base flex-shrink-0">${icon}</span>
+              <span class="text-gray-200 text-sm group-hover:text-white flex-1 truncate font-mono">${item.name}</span>
+              <span class="text-gray-500 text-xs flex-shrink-0 group-hover:text-indigo-400 transition">Load →</span>
+            `;
+            row.onclick = () => {
+              document.getElementById("viewerFileName").value = item.path;
+              document
+                .getElementById("repoFileListArea")
+                .classList.add("hidden");
+              browserHistory = [];
+              currentBrowserPath = "";
+              fetchGitHubFile();
+            };
+          }
+
+          listEl.appendChild(row);
+        });
+      }
+
+      function browserNavigateTo(path) {
+        browserHistory.push(currentBrowserPath);
+        listRepoFiles(path);
+      }
+
+      function browserGoBack() {
+        if (browserHistory.length === 0) return;
+        const prev = browserHistory.pop();
+        listRepoFiles(prev);
+      }
+
+      // ── Fullscreen Editor ────────────────────────────────────
+      function openViewerFullscreen() {
+        const content = document.getElementById("viewerContentBox").value;
+        const label = document.getElementById("viewerFileLabel").textContent;
+        const lineCount =
+          document.getElementById("viewerLineCount").textContent;
+        document.getElementById("fsContentBox").value = content;
+        document.getElementById("fsFileLabel").textContent = label;
+        document.getElementById("fsLineCount").textContent = lineCount;
+        document.getElementById("fullscreenOverlay").classList.remove("hidden");
+        document.body.style.overflow = "hidden";
+        document.getElementById("fsContentBox").focus();
+      }
+
+      function closeViewerFullscreen() {
+        // Sync content back to main editor
+        const fsContent = document.getElementById("fsContentBox").value;
+        document.getElementById("viewerContentBox").value = fsContent;
+        const lines = fsContent.split("\n").length;
+        document.getElementById("viewerLineCount").textContent =
+          `${lines} লাইন`;
+        document.getElementById("fsLineCount").textContent = `${lines} লাইন`;
+        document.getElementById("fullscreenOverlay").classList.add("hidden");
+        document.body.style.overflow = "";
+      }
+
+      async function pushFromFullscreen() {
+        // Sync to main box first, then push
+        closeViewerFullscreen();
+        await pushViewerContent();
+      }
+
+      // ESC key closes fullscreen
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.key === "Escape" &&
+          !document
+            .getElementById("fullscreenOverlay")
+            .classList.contains("hidden")
+        ) {
+          closeViewerFullscreen();
+        }
+      });
+
+      window.addEventListener("DOMContentLoaded", () => {
+        loadOwnConfig();
+        loadViewerConfig();
+      });
     </script>
   </body>
 </html>
