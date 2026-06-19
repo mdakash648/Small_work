@@ -43,17 +43,36 @@
           <label class="block text-sm font-medium mb-2 text-gray-400"
             >সব মুভির জন্য কমন গ্রুপের নাম দাও:</label
           >
+          <!-- Existing groups from repo -->
+          <div class="flex gap-2 mb-2">
+            <select
+              id="groupDropdown"
+              onchange="onGroupDropdownChange()"
+              class="bg-gray-700 text-white px-3 py-2 rounded-md flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            >
+              <option value="">— GitHub repo থেকে group select করো —</option>
+            </select>
+            <button
+              onclick="loadGroupsFromRepo()"
+              id="loadGroupsBtn"
+              class="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-semibold transition whitespace-nowrap"
+              title="Connected GitHub repo-র M3U file থেকে group titles load করো"
+            >
+              📂 Groups Load
+            </button>
+          </div>
+          <p id="groupLoadStatus" class="text-xs text-gray-500 mb-2 hidden"></p>
+          <!-- Custom / manual input -->
           <div class="flex gap-2">
             <input
               type="text"
               id="bulkGroupName"
-              value="My Custom Group"
-              placeholder="e.g., Action Movies, Netlfix, Trending"
+              placeholder="অথবা নিজে group লেখো: e.g., Action Movies, Trending"
               class="bg-gray-700 text-white px-4 py-2 rounded-md flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button
               onclick="applyBulkGroup()"
-              class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md font-medium transition"
+              class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md font-medium transition whitespace-nowrap"
             >
               গ্রুপ অ্যাপ্লাই করো
             </button>
@@ -815,7 +834,269 @@
         }
       }
 
-      // ── Main Push ─────────────────────────────────────────────
+      // ── Group-aware M3U merge helpers ───────────────────────────
+      // Parses M3U text (with or without #EXTM3U header) into a list
+      // of entries: [{ group, lines: [#EXTINF, ...EXTVLCOPT, URL] }]
+      function parseM3UEntries(content) {
+        const lines = (content || "").split(/\r?\n/);
+        const entries = [];
+        let i = 0;
+        while (i < lines.length) {
+          const line = lines[i];
+          if (line.trim() === "" || line.startsWith("#EXTM3U")) {
+            i++;
+            continue;
+          }
+          if (line.startsWith("#EXTINF")) {
+            const groupMatch = line.match(/group-title="([^"]*)"/i);
+            const group = groupMatch ? groupMatch[1] : "";
+            const entryLines = [line];
+            i++;
+            // Collect everything that belongs to this entry (EXTVLCOPT
+            // lines, the URL, etc.) until the next #EXTINF or blank line
+            while (
+              i < lines.length &&
+              lines[i].trim() !== "" &&
+              !lines[i].startsWith("#EXTINF")
+            ) {
+              entryLines.push(lines[i]);
+              i++;
+            }
+            entries.push({ group, lines: entryLines });
+          } else {
+            // Stray line that isn't part of a recognizable entry — skip it
+            i++;
+          }
+        }
+        return entries;
+      }
+
+      // Joins entries back into M3U text, keeping entries of the same
+      // group glued together and separating different group blocks
+      // with a single blank line.
+      function reconstructM3UEntries(entries) {
+        const out = [];
+        let prevKey = null;
+        entries.forEach((entry, idx) => {
+          const key = entry.group.trim().toLowerCase();
+          if (idx > 0 && key !== prevKey) out.push("");
+          out.push(...entry.lines);
+          prevKey = key;
+        });
+        return out.join("\n");
+      }
+
+      // Merges newContent into existingContent so that every new entry
+      // lands right after the LAST existing entry that shares the same
+      // group-title. Entries whose group doesn't exist yet in the
+      // existing file are appended as new group blocks at the very end.
+      function mergeM3UByGroup(existingContent, newContent) {
+        const existingEntries = parseM3UEntries(existingContent);
+        const newEntries = parseM3UEntries(newContent);
+
+        if (existingEntries.length === 0) {
+          return (
+            "#EXTM3U\n" + reconstructM3UEntries(newEntries).trimStart() + "\n"
+          );
+        }
+
+        // Track the last index (in `merged`) of each group, so several
+        // new entries for the same group get inserted in order.
+        const groupLastIndex = {};
+        existingEntries.forEach((e, idx) => {
+          groupLastIndex[e.group.trim().toLowerCase()] = idx;
+        });
+
+        const merged = existingEntries.slice();
+        const newGroupsToAppend = [];
+
+        newEntries.forEach((entry) => {
+          const key = entry.group.trim().toLowerCase();
+          if (Object.prototype.hasOwnProperty.call(groupLastIndex, key)) {
+            const insertAt = groupLastIndex[key] + 1;
+            merged.splice(insertAt, 0, entry);
+            // Shift every tracked index that comes after the insertion point
+            Object.keys(groupLastIndex).forEach((k) => {
+              if (groupLastIndex[k] >= insertAt) groupLastIndex[k]++;
+            });
+            groupLastIndex[key] = insertAt;
+          } else {
+            newGroupsToAppend.push(entry);
+          }
+        });
+
+        let body = reconstructM3UEntries(merged);
+
+        if (newGroupsToAppend.length > 0) {
+          const appendBody = reconstructM3UEntries(newGroupsToAppend);
+          body = body.trimEnd() + "\n\n" + appendBody;
+        }
+
+        return "#EXTM3U\n" + body.trimStart() + "\n";
+      }
+
+      // Variant: merges with a comment block inserted before the first new entry
+      function mergeM3UByGroupWithComment(
+        existingContent,
+        newBodyOnly,
+        commentBlock,
+      ) {
+        const existingEntries = parseM3UEntries(existingContent);
+        const newEntries = parseM3UEntries("#EXTM3U\n" + newBodyOnly);
+
+        if (existingEntries.length === 0) {
+          return (
+            "#EXTM3U\n" +
+            commentBlock +
+            "\n" +
+            reconstructM3UEntries(newEntries).trimStart() +
+            "\n"
+          );
+        }
+
+        const groupLastIndex = {};
+        existingEntries.forEach((e, idx) => {
+          groupLastIndex[e.group.trim().toLowerCase()] = idx;
+        });
+
+        const merged = existingEntries.slice();
+        const newGroupsToAppend = [];
+
+        newEntries.forEach((entry, entryIdx) => {
+          const key = entry.group.trim().toLowerCase();
+          // Attach comment block to the very first entry being inserted
+          const entryToInsert =
+            entryIdx === 0
+              ? { ...entry, lines: [commentBlock, ...entry.lines] }
+              : entry;
+
+          if (Object.prototype.hasOwnProperty.call(groupLastIndex, key)) {
+            const insertAt = groupLastIndex[key] + 1;
+            merged.splice(insertAt, 0, entryToInsert);
+            Object.keys(groupLastIndex).forEach((k) => {
+              if (groupLastIndex[k] >= insertAt) groupLastIndex[k]++;
+            });
+            groupLastIndex[key] = insertAt;
+          } else {
+            newGroupsToAppend.push(entryToInsert);
+          }
+        });
+
+        let body = reconstructM3UEntries(merged);
+
+        if (newGroupsToAppend.length > 0) {
+          const appendBody = reconstructM3UEntries(newGroupsToAppend);
+          body = body.trimEnd() + "\n\n" + appendBody;
+        }
+
+        return "#EXTM3U\n" + body.trimStart() + "\n";
+      }
+
+      // ── Generate date-stamped comment block ─────────────────
+      function generateCommentBlock(titles) {
+        const now = new Date();
+        const months = [
+          "JANUARY",
+          "FEBRUARY",
+          "MARCH",
+          "APRIL",
+          "MAY",
+          "JUNE",
+          "JULY",
+          "AUGUST",
+          "SEPTEMBER",
+          "OCTOBER",
+          "NOVEMBER",
+          "DECEMBER",
+        ];
+        const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+        const sep = "# ==========================================";
+        const lines = [sep];
+        lines.push(`# Add : ${dateStr}`);
+        titles.forEach((t) => lines.push(`# CONTENT - ${t}`));
+        lines.push(sep);
+        return lines.join("\n");
+      }
+
+      // ── Load group titles from connected GitHub repo ─────────
+      async function loadGroupsFromRepo() {
+        // Try viewer config first, then own config
+        const token =
+          document.getElementById("viewerToken").value.trim() ||
+          document.getElementById("ownToken").value.trim();
+        const user =
+          document.getElementById("viewerUser").value.trim() ||
+          document.getElementById("ownUser").value.trim();
+        const repo =
+          document.getElementById("viewerRepo").value.trim() ||
+          document.getElementById("ownRepo").value.trim();
+        const file =
+          document.getElementById("viewerFileName").value.trim() ||
+          document.getElementById("ownFileName").value.trim();
+
+        const statusEl = document.getElementById("groupLoadStatus");
+        statusEl.className = "text-xs mb-2 text-amber-400";
+        statusEl.textContent = "⏳ GitHub থেকে groups load হচ্ছে...";
+        statusEl.classList.remove("hidden");
+
+        if (!token || !user || !repo || !file) {
+          statusEl.textContent = "⚠️ আগে Step ৪ বা Step ৫-এ GitHub config দাও।";
+          statusEl.className = "text-xs mb-2 text-yellow-400";
+          return;
+        }
+
+        try {
+          const res = await fetch(
+            `https://api.github.com/repos/${user}/${repo}/contents/${file}`,
+            {
+              headers: { Authorization: `token ${token}` },
+            },
+          );
+          if (!res.ok) {
+            const e = await res.json();
+            throw new Error(e.message);
+          }
+          const data = await res.json();
+          const content = decodeURIComponent(
+            escape(atob(data.content.replace(/\n/g, ""))),
+          );
+
+          // Extract unique group-title values preserving order
+          const groups = [];
+          const seen = new Set();
+          for (const line of content.split(/\r?\n/)) {
+            const m = line.match(/group-title="([^"]*)"/i);
+            if (m && !seen.has(m[1])) {
+              seen.add(m[1]);
+              groups.push(m[1]);
+            }
+          }
+
+          const sel = document.getElementById("groupDropdown");
+          sel.innerHTML = `<option value="">— group select করো —</option>`;
+          groups.forEach((g) => {
+            const opt = document.createElement("option");
+            opt.value = g;
+            opt.textContent = g;
+            sel.appendChild(opt);
+          });
+
+          statusEl.textContent = `✅ ${groups.length}টি group পাওয়া গেছে।`;
+          statusEl.className = "text-xs mb-2 text-green-400";
+        } catch (e) {
+          statusEl.textContent = `❌ Error: ${e.message}`;
+          statusEl.className = "text-xs mb-2 text-red-400";
+        }
+      }
+
+      function onGroupDropdownChange() {
+        const val = document.getElementById("groupDropdown").value;
+        if (val) {
+          document.getElementById("bulkGroupName").value = val;
+          applyBulkGroup();
+        }
+      }
+
       async function pushToGitHub() {
         let token, username, repo, filename;
 
@@ -871,12 +1152,24 @@
         // Build final content
         let contentToPush;
         if (pushMode === "append" && existingContent) {
-          const trimmedExisting = existingContent.trimEnd();
-          // Remove #EXTM3U header from new block — already exists in file
-          const newBlock = finalM3UContent
+          // Build a comment block listing all titles being added
+          const addedTitles = movies.map((m) => m.title);
+          const commentBlock = generateCommentBlock(addedTitles);
+
+          // Strip #EXTM3U header from new content
+          const newBodyOnly = finalM3UContent
             .replace(/^#EXTM3U\r?\n?/, "")
             .trimStart();
-          contentToPush = trimmedExisting + "\n\n" + newBlock;
+
+          // Group-aware merge with comment injected right before new entries
+          // We wrap newBodyOnly with the comment block and treat the whole as the "new block"
+          const newContentWithComment =
+            "#EXTM3U\n" + commentBlock + "\n" + newBodyOnly;
+          contentToPush = mergeM3UByGroupWithComment(
+            existingContent,
+            newBodyOnly,
+            commentBlock,
+          );
         } else {
           contentToPush = finalM3UContent;
         }
