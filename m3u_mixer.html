@@ -1446,11 +1446,17 @@
             "text-yellow-300",
           );
         } else {
-          const existing = box.value.trimEnd();
-          const newBlock = text.replace(/^#EXTM3U\r?\n?/, "").trimStart();
-          box.value = existing + "\n\n" + newBlock;
+          // Group-aware merge: same logic as pushToGitHub() append mode.
+          // New entries land right after the last existing entry of the same
+          // group-title, so PC entries and phone entries never clobber each other.
+          const existing = box.value;
+          const merged = mergeM3UByGroup(existing, text);
+          box.value = merged;
+          const lines = merged.split("\n").length;
+          document.getElementById("viewerLineCount").textContent =
+            `${lines} লাইন`;
           showViewerStatus(
-            "➕ Upload append করা হয়েছে। এখন GitHub-এ Save করো।",
+            "➕ Group-aware merge হয়েছে। এখন GitHub-এ Save করো।",
             "text-green-300",
           );
         }
@@ -1469,6 +1475,33 @@
           return;
         }
 
+        showViewerStatus(
+          "⏳ GitHub থেকে latest SHA নেওয়া হচ্ছে...",
+          "text-amber-400",
+        );
+
+        const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/${filename}`;
+
+        // Always fetch the LATEST SHA from GitHub right before pushing.
+        // This prevents stale-SHA conflicts when another device pushed since
+        // the file was last loaded in this tab.
+        let freshSHA = null;
+        try {
+          const shaRes = await fetch(apiUrl, {
+            headers: { Authorization: `token ${token}` },
+          });
+          if (shaRes.ok) {
+            const shaData = await shaRes.json();
+            freshSHA = shaData.sha;
+            viewerFileSHA = freshSHA; // keep local copy in sync
+          }
+          // If the file doesn't exist yet (404) freshSHA stays null → create new file
+        } catch (e) {
+          // Network error during SHA fetch — abort to be safe
+          showViewerStatus(`❌ SHA fetch error: ${e.message}`, "text-red-400");
+          return;
+        }
+
         showViewerStatus("⏳ GitHub-এ save হচ্ছে...", "text-amber-400");
 
         const base64Content = btoa(unescape(encodeURIComponent(content)));
@@ -1476,20 +1509,17 @@
           message: `Updated ${filename} via M3U Mixer editor`,
           content: base64Content,
         };
-        if (viewerFileSHA) bodyData.sha = viewerFileSHA;
+        if (freshSHA) bodyData.sha = freshSHA;
 
         try {
-          const res = await fetch(
-            `https://api.github.com/repos/${user}/${repo}/contents/${filename}`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `token ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(bodyData),
+          const res = await fetch(apiUrl, {
+            method: "PUT",
+            headers: {
+              Authorization: `token ${token}`,
+              "Content-Type": "application/json",
             },
-          );
+            body: JSON.stringify(bodyData),
+          });
           if (res.ok) {
             const data = await res.json();
             viewerFileSHA = data.content.sha;
