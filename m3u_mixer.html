@@ -897,6 +897,7 @@
       function parseM3UEntries(content) {
         const lines = (content || "").split(/\r?\n/);
         const entries = [];
+        let pendingLooseLines = [];
         let i = 0;
         while (i < lines.length) {
           const line = lines[i];
@@ -907,7 +908,8 @@
           if (line.startsWith("#EXTINF")) {
             const groupMatch = line.match(/group-title="([^"]*)"/i);
             const group = groupMatch ? groupMatch[1] : "";
-            const entryLines = [line];
+            const entryLines = [...pendingLooseLines, line];
+            pendingLooseLines = [];
             i++;
             // Collect everything that belongs to this entry (EXTVLCOPT
             // lines, the URL, etc.) until the next #EXTINF or blank line
@@ -921,9 +923,17 @@
             }
             entries.push({ group, lines: entryLines });
           } else {
-            // Stray line that isn't part of a recognizable entry — skip it
+            // Preserve standalone metadata lines such as auto_search_update.
+            pendingLooseLines.push(line);
             i++;
           }
+        }
+        if (pendingLooseLines.length > 0) {
+          entries.push({
+            group: "",
+            lines: pendingLooseLines,
+            metadataOnly: true,
+          });
         }
         return entries;
       }
@@ -938,7 +948,7 @@
           const key = entry.group.trim().toLowerCase();
           if (idx > 0 && key !== prevKey) out.push("");
           out.push(...entry.lines);
-          prevKey = key;
+          if (!entry.metadataOnly) prevKey = key;
         });
         return out.join("\n");
       }
@@ -961,6 +971,7 @@
         // new entries for the same group get inserted in order.
         const groupLastIndex = {};
         existingEntries.forEach((e, idx) => {
+          if (e.metadataOnly) return;
           groupLastIndex[e.group.trim().toLowerCase()] = idx;
         });
 
@@ -968,6 +979,10 @@
         const newGroupsToAppend = [];
 
         newEntries.forEach((entry) => {
+          if (entry.metadataOnly) {
+            newGroupsToAppend.push(entry);
+            return;
+          }
           const key = entry.group.trim().toLowerCase();
           if (Object.prototype.hasOwnProperty.call(groupLastIndex, key)) {
             const insertAt = groupLastIndex[key] + 1;
@@ -1013,6 +1028,7 @@
 
         const groupLastIndex = {};
         existingEntries.forEach((e, idx) => {
+          if (e.metadataOnly) return;
           groupLastIndex[e.group.trim().toLowerCase()] = idx;
         });
 
@@ -1020,6 +1036,10 @@
         const newGroupsToAppend = [];
 
         newEntries.forEach((entry, entryIdx) => {
+          if (entry.metadataOnly) {
+            newGroupsToAppend.push(entry);
+            return;
+          }
           const key = entry.group.trim().toLowerCase();
           // Attach comment block to the very first entry being inserted
           const entryToInsert =
