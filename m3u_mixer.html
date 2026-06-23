@@ -1013,7 +1013,55 @@
         const sep = "# ==========================================";
         const lines = [sep];
         lines.push(`# Add : ${dateStr}`);
-        titles.forEach((t) => lines.push(`# CONTENT - ${t}`));
+
+        // Try to collapse web series episodes into season ranges.
+        // Pattern: <ShowName>.S##E##.<suffix>
+        // If ALL titles match the pattern and share the same show+suffix,
+        // group by season and emit one range line per season.
+        const epRegex = /^(.+?)\.(S\d+)(E\d+)(\..+)$/i;
+        const parsed = titles.map((t) => {
+          const m = t.match(epRegex);
+          return m
+            ? {
+                original: t,
+                show: m[1],
+                season: m[2].toUpperCase(),
+                ep: m[3].toUpperCase(),
+                suffix: m[4],
+              }
+            : null;
+        });
+
+        const allSeries = parsed.every(Boolean);
+
+        if (allSeries && titles.length > 1) {
+          // Group by (show + season + suffix)
+          const seasonMap = new Map();
+          parsed.forEach(({ show, season, ep, suffix }) => {
+            const key = `${show}|||${season}|||${suffix}`;
+            if (!seasonMap.has(key))
+              seasonMap.set(key, { show, season, suffix, eps: [] });
+            seasonMap.get(key).eps.push(ep);
+          });
+
+          seasonMap.forEach(({ show, season, suffix, eps }) => {
+            eps.sort(); // lexicographic sort works fine for E01, E02…
+            const first = eps[0];
+            const last = eps[eps.length - 1];
+            if (first === last) {
+              // Only one episode in this season
+              lines.push(`# CONTENT - ${show}.${season}${first}${suffix}`);
+            } else {
+              lines.push(
+                `# CONTENT - ${show}.${season}${first} - ${season}${last}${suffix}`,
+              );
+            }
+          });
+        } else {
+          // Fallback: list every title individually (movies, single episodes, etc.)
+          titles.forEach((t) => lines.push(`# CONTENT - ${t}`));
+        }
+
         lines.push(sep);
         return lines.join("\n");
       }
