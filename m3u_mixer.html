@@ -71,6 +71,13 @@
               class="bg-gray-700 text-white px-4 py-2 rounded-md flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button
+              onclick="autoFillGroupName()"
+              title="Content নাম থেকে group-title অটো বানাও"
+              class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-medium transition whitespace-nowrap"
+            >
+              ✨ Auto Fill
+            </button>
+            <button
               onclick="applyBulkGroup()"
               class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md font-medium transition whitespace-nowrap"
             >
@@ -638,6 +645,56 @@
                 `;
           container.appendChild(div);
         });
+      }
+
+      // ── Auto-detect group-title from content filename ────────
+      function autoFillGroupName() {
+        if (movies.length === 0) {
+          alert("আগে M3U ফাইল আপলোড করো!");
+          return;
+        }
+        const raw = movies[0].title;
+        const name = extractGroupTitle(raw);
+        document.getElementById("bulkGroupName").value = name;
+        applyBulkGroup();
+      }
+
+      function extractGroupTitle(raw) {
+        // 1. Strip leading site tags like [Fibwatch.Com] or (Fibwatch)
+        let s = raw
+          .replace(/^\[[^\]]*\]/i, "")
+          .replace(/^\([^)]*\)/i, "")
+          .trim();
+
+        // 2. Replace dots/underscores with spaces
+        s = s.replace(/[._]/g, " ").trim();
+
+        // 3. Cut off at season/episode marker, quality, or codec keywords
+        const cutPatterns = [
+          /\bS\d{1,2}E\d{1,2}\b/i,
+          /\bS\d{1,2}\b/i,
+          /\bE\d{2,3}\b/i,
+          /\b\d{3,4}[pP]\b/,
+          /\b(WEB[-\s]?DL|HDTV|BluRay|BRRip|WEBRip|AMZN|NF|DSNP|HMAX|MX|SonyLIV|Hotstar|ZEE5)\b/i,
+          /\b(AAC|DDP|AC3|DD5|x264|x265|HEVC|AVC|H\.?264|H\.?265|mkv|mp4|avi)\b/i,
+          /\b(Episode|Ep)\s*\d+\b/i,
+        ];
+
+        let cutIndex = s.length;
+        for (const pat of cutPatterns) {
+          const m = s.search(pat);
+          if (m !== -1 && m < cutIndex) cutIndex = m;
+        }
+
+        s = s
+          .substring(0, cutIndex)
+          .replace(/[-.\s]+$/, "")
+          .trim();
+
+        // 4. Title-case
+        s = s.replace(/\b\w/g, (c) => c.toUpperCase());
+
+        return s || raw;
       }
 
       // Generate Final M3U Content

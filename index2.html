@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161a22;
+      --border:    #252b37;
+      --accent:    #4f8ef7;
+      --accent2:   #7c5cfc;
+      --text:      #e8ecf4;
+      --muted:     #6b7589;
+      --card-hover:#1c2230;
+      --radius:    14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 48px 24px 0;
+      text-align: center;
+    }
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .logo-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+      font-size: 15px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 14px;
+    }
+    h1 span {
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 440px;
+      margin: 0 auto 48px;
+      line-height: 1.6;
+    }
+
+    .search-wrap {
+      max-width: 400px;
+      margin: 0 auto 48px;
+      position: relative;
+    }
+    .search-wrap svg {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      width: 16px; height: 16px;
+      stroke: var(--muted);
+    }
+    #searchInput {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 40px;
+      padding: 12px 16px 12px 40px;
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    #searchInput::placeholder { color: var(--muted); }
+    #searchInput:focus { border-color: var(--accent); }
+
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 26px 24px 22px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: background .2s, border-color .2s, transform .2s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      opacity: 0;
+      transition: opacity .25s;
+    }
+    .card:hover { background: var(--card-hover); border-color: #3a4560; transform: translateY(-2px); }
+    .card:hover::before { opacity: 0.04; }
+
+    .card-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .card-body { flex: 1; }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+    .card-desc {
+      font-size: 0.83rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .card-tag {
+      align-self: flex-start;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .ic-blue   { background: rgba(79,142,247,.15); }
+    .ic-purple { background: rgba(124,92,252,.15); }
+    .ic-green  { background: rgba(52,211,153,.15); }
+    .ic-orange { background: rgba(251,146,60,.15); }
+    .ic-pink   { background: rgba(244,114,182,.15); }
+    .ic-teal   { background: rgba(45,212,191,.15); }
+
+    #emptyState {
+      display: none;
+      text-align: center;
+      padding: 60px 0;
+      color: var(--muted);
+    }
+    #emptyState svg { margin-bottom: 16px; opacity: .4; }
+    #emptyState p { font-size: 0.9rem; }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    @media (max-width: 480px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">
+    <div class="logo-icon">⚙️</div>
+    <span class="logo-text">my-tools / index</span>
+  </div>
+  <h1>Your Personal<br /><span>Toolbox</span></h1>
+  <p class="subtitle">সব কাজের জন্য এক জায়গায়। নিচের যেকোনো tool-এ ক্লিক করে শুরু করো।</p>
+
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input id="searchInput" type="text" placeholder="Tool খোঁজো..." autocomplete="off" />
+  </div>
+</header>
+
+<main>
+  <p class="section-label">সব Tools — <span id="toolCount">0</span> টি</p>
+  <div class="grid" id="toolGrid"></div>
+  <div id="emptyState">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <p>কোনো tool পাওয়া যায়নি। অন্য keyword দিয়ে চেষ্টা করো।</p>
+  </div>
+</main>
+
+<footer>
+  <span id="footerHost"></span> &nbsp;·&nbsp; personal tools
+</footer>
+
+<script>
+  // ══════════════════════════════════════════════════════════════
+  //  🛠️  TOOLS LIST — নতুন tool add করতে শুধু এখানে object যোগ করো
+  //
+  //  file      → HTML file-এর নাম (extension সহ)
+  //  title     → Card-এ দেখাবে
+  //  desc      → Card-এ ছোট বর্ণনা
+  //  icon      → Emoji
+  //  color     → ic-blue | ic-purple | ic-green | ic-orange | ic-pink | ic-teal
+  //  tag       → Badge-এ দেখাবে (category)
+  //  keywords  → Search-এ কাজ করবে (space দিয়ে লেখো)
+  // ══════════════════════════════════════════════════════════════
+  const TOOLS = [
+    {
+      file:     "Number-checklist.html",
+      title:    "Number Checklist",
+      desc:     "Number-এর list তৈরি ও track করো। কোনটা done, কোনটা বাকি — সব এক নজরে।",
+      icon:     "☑️",
+      color:    "ic-blue",
+      tag:      "checklist",
+      keywords: "number checklist list track done"
+    },
+    {
+      file:     "m3u_mixer.html",
+      title:    "M3U Mixer",
+      desc:     "M3U playlist file মিক্স ও এডিট করো। IPTV channel list সাজাও নিজের মতো।",
+      icon:     "📺",
+      color:    "ic-purple",
+      tag:      "playlist",
+      keywords: "m3u playlist mixer iptv channel"
+    },
+    {
+      file:     "number_rearranger.html",
+      title:    "Number Rearranger",
+      desc:     "Numbers-এর ক্রম পরিবর্তন করো — sort, shuffle, বা custom order-এ সাজাও।",
+      icon:     "🔢",
+      color:    "ic-green",
+      tag:      "utility",
+      keywords: "number sort arrange reorder shuffle"
+    },
+    {
+      file:     "qr-code-generator.html",
+      title:    "QR Code Generator",
+      desc:     "যেকোনো link বা text থেকে QR code বানাও। Download করো এবং share করো।",
+      icon:     "📷",
+      color:    "ic-orange",
+      tag:      "generator",
+      keywords: "qr code generator scan link"
+    },
+
+    // ──────────────────────────────────────────────────
+    // 👇 নতুন tool add করতে নিচে copy-paste করো:
+    // {
+    //   file:     "your-tool.html",
+    //   title:    "Tool নাম",
+    //   desc:     "এই tool কী করে তার বর্ণনা।",
+    //   icon:     "🔧",
+    //   color:    "ic-teal",
+    //   tag:      "category",
+    //   keywords: "keyword1 keyword2 keyword3"
+    // },
+    // ──────────────────────────────────────────────────
+  ];
+  // ══════════════════════════════════════════════════════════════
+
+
+  // Auto URL generation — index যেখানেই host হোক, সেই base নেবে
+  const BASE_URL = (() => {
+    const { protocol, host, pathname } = window.location;
+    const dir = pathname.substring(0, pathname.lastIndexOf('/') + 1);
+    return `${protocol}//${host}${dir}`;
+  })();
+
+  // Footer-এ host দেখাও
+  document.getElementById('footerHost').textContent = window.location.host;
+
+  // Card render
+  const grid   = document.getElementById('toolGrid');
+  const countEl = document.getElementById('toolCount');
+
+  function renderCards(list) {
+    grid.innerHTML = '';
+    list.forEach(tool => {
+      const url = BASE_URL + tool.file;
+      const card = document.createElement('a');
+      card.className = 'card';
+      card.href = url;
+      card.dataset.keywords = (tool.title + ' ' + tool.keywords + ' ' + tool.tag).toLowerCase();
+      card.innerHTML = `
+        <div class="card-icon ${tool.color}">${tool.icon}</div>
+        <div class="card-body">
+          <div class="card-title">${tool.title}</div>
+          <div class="card-desc">${tool.desc}</div>
+        </div>
+        <span class="card-tag">${tool.tag}</span>
+      `;
+      grid.appendChild(card);
+    });
+    countEl.textContent = list.length;
+  }
+
+  renderCards(TOOLS);
+
+  // Search / filter
+  const input = document.getElementById('searchInput');
+  const empty = document.getElementById('emptyState');
+
+  input.addEventListener('input', () => {
+    const q = input.value.toLowerCase().trim();
+    const cards = grid.querySelectorAll('.card');
+    let visible = 0;
+    cards.forEach(card => {
+      const match = !q || card.dataset.keywords.includes(q);
+      card.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    countEl.textContent = visible;
+    empty.style.display = visible === 0 ? 'block' : 'none';
+  });
+</script>
+
+</body>
+</html>
