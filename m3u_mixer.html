@@ -100,6 +100,48 @@
           <!-- Loaded movies preview list -->
         </div>
 
+        <!-- IMDB Logo Auto-Fetch -->
+        <div class="mb-6 bg-gray-900/50 border border-gray-700 rounded-md p-4">
+          <div class="flex justify-between items-center flex-wrap gap-2 mb-2">
+            <h3 class="text-sm font-semibold text-gray-300">
+              🖼️ IMDB থেকে অটো tvg-logo (poster) আনো
+            </h3>
+            <div class="flex gap-2">
+              <button
+                onclick="fetchAllLogos()"
+                id="fetchLogosBtn"
+                class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+              >
+                🎬 Fetch All Logos
+              </button>
+              <button
+                onclick="fetchAllLogos(true)"
+                id="fetchMissingBtn"
+                class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+                title="শুধু যেগুলোর logo এখনো পাওয়া যায়নি সেগুলো আবার try করবে"
+              >
+                🔄 শুধু Missing গুলো
+              </button>
+            </div>
+          </div>
+          <div class="flex gap-2 items-center mb-2">
+            <input
+              type="text"
+              id="omdbApiKey"
+              placeholder="OMDb API key (fallback হিসেবে ব্যবহার হবে, না দিলে শুধু IMDB proxy দিয়ে try করবে)"
+              class="bg-gray-700 text-white px-3 py-1.5 rounded-md flex-grow focus:outline-none focus:ring-2 focus:ring-yellow-500 text-xs"
+              onchange="saveOmdbApiKey()"
+            />
+            <a
+              href="https://www.omdbapi.com/apikey.aspx"
+              target="_blank"
+              class="text-xs text-yellow-400 hover:underline whitespace-nowrap"
+              >ফ্রি key নাও</a
+            >
+          </div>
+          <p id="logoFetchStatus" class="text-xs text-gray-400"></p>
+        </div>
+
         <!-- Action Buttons -->
         <div class="flex flex-wrap gap-4">
           <button
@@ -320,6 +362,14 @@
                 🚀 GitHub-এ Save করো
               </button>
               <button
+                onclick="fetchMissingPostersInViewer()"
+                id="fetchViewerPostersBtn"
+                class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+                title="যেসব entry-তে এখনো tvg-logo নেই, শুধু সেগুলোর জন্য IMDB থেকে poster খুঁজে এই box-এ বসিয়ে দেবে। তারপর 'GitHub-এ Save করো' চাপলে আপলোড হবে।"
+              >
+                🖼️ Missing Poster যোগ করো
+              </button>
+              <button
                 onclick="openViewerFullscreen()"
                 class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
                 title="Fullscreen"
@@ -328,6 +378,13 @@
               </button>
             </div>
           </div>
+
+          <p class="text-xs text-gray-500 mb-2">
+            * "Missing Poster যোগ করো" চাপলে এই box-এ থাকা পুরনো playlist-এর
+            যেসব entry-তে poster নেই, শুধু সেগুলোর জন্য IMDB/OMDb থেকে খুঁজে
+            poster বসিয়ে দেবে — এরপর "GitHub-এ Save করো" চাপলে সেটা আপলোড হবে।
+            উপরে OMDb API key দিয়ে রাখলে result আরও ভালো হবে।
+          </p>
 
           <!-- Hidden file input for viewer upload -->
           <input
@@ -586,6 +643,9 @@
           document
             .getElementById("customizerSection")
             .classList.remove("hidden");
+
+          // Auto-fetch IMDB logos for the newly uploaded movies (skips ones that already have one)
+          fetchAllLogos(true);
         });
 
       // Parse M3U
@@ -614,11 +674,17 @@
                 .replace(/group-title="[^"]*"/g, "")
                 .trim();
 
+              // Pull out any existing tvg-logo so we can manage it ourselves
+              const logoMatch = cleanInfo.match(/tvg-logo="([^"]*)"/);
+              const existingLogo = logoMatch ? logoMatch[1] : "";
+              cleanInfo = cleanInfo.replace(/tvg-logo="[^"]*"/g, "").trim();
+
               movies.push({
                 info: cleanInfo,
                 title: title,
                 url: line,
                 vlcOpts: [...vlcOpts], // preserve EXTVLCOPT lines
+                logo: existingLogo,
               });
               currentInfo = null;
               vlcOpts = [];
@@ -635,16 +701,38 @@
         const container = document.getElementById("moviesList");
         container.innerHTML = "";
 
-        movies.forEach((movie) => {
+        movies.forEach((movie, idx) => {
           const div = document.createElement("div");
           div.className =
-            "flex justify-between items-center bg-gray-700 px-3 py-1.5 rounded-md text-sm gap-4";
+            "flex justify-between items-center bg-gray-700 px-3 py-1.5 rounded-md text-sm gap-3";
+          div.id = `movieRow_${idx}`;
+
+          const logoImg = movie.logo
+            ? `<img src="${movie.logo}" class="w-8 h-11 object-cover rounded border border-gray-600 flex-shrink-0" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'w-8 h-11 flex items-center justify-center bg-gray-800 text-xs rounded border border-red-700 flex-shrink-0', textContent:'❌'}))" />`
+            : `<div class="w-8 h-11 flex items-center justify-center bg-gray-800 text-xs rounded border border-gray-600 flex-shrink-0">—</div>`;
+
           div.innerHTML = `
-                    <span class="truncate font-medium max-w-md" title="${movie.title}">${movie.title}</span>
-                    <span class="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-indigo-700">${globalGroup}</span>
+                    ${logoImg}
+                    <span class="truncate font-medium max-w-xs flex-grow" title="${movie.title}">${movie.title}</span>
+                    <span id="logoStatus_${idx}" class="text-xs text-gray-400 whitespace-nowrap">${movie.logo ? "✅ logo" : "— logo নেই"}</span>
+                    <span class="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-indigo-700 whitespace-nowrap">${globalGroup}</span>
+                    <button onclick="editLogoManually(${idx})" title="Logo লিংক নিজে দাও / ঠিক করো" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">✏️</button>
                 `;
           container.appendChild(div);
         });
+      }
+
+      // ── Let user manually paste/correct a tvg-logo URL for one movie ──
+      function editLogoManually(idx) {
+        const movie = movies[idx];
+        if (!movie) return;
+        const val = prompt(
+          `"${movie.title}" এর জন্য tvg-logo (poster) URL দাও:`,
+          movie.logo || "",
+        );
+        if (val === null) return;
+        movie.logo = val.trim();
+        applyBulkGroup();
       }
 
       // ── Auto-detect group-title from content filename ────────
@@ -678,6 +766,13 @@
           /\b(WEB[-\s]?DL|HDTV|BluRay|BRRip|WEBRip|AMZN|NF|DSNP|HMAX|MX|SonyLIV|Hotstar|ZEE5)\b/i,
           /\b(AAC|DDP|AC3|DD5|x264|x265|HEVC|AVC|H\.?264|H\.?265|mkv|mp4|avi)\b/i,
           /\b(Episode|Ep)\s*\d+\b/i,
+          /\bPart\s*\d+\b/i,
+          /\bVol\.?\s*\d+\b/i,
+          /\bComplete\b/i,
+          /\bDual\b/i,
+          /\bMulti\b/i,
+          /\bAudio\b/i,
+          /\bSeason\s*\d+\b/i,
         ];
 
         let cutIndex = s.length;
@@ -697,6 +792,360 @@
         return s || raw;
       }
 
+      // ── Clean Content Name (for API/clean display) ────────────────────────────────────
+      function cleanContentName(name) {
+        // Remove file extension (.m3u, .m3u8, .mkv, .mp4, etc)
+        name = name.replace(/\.(m3u8?|mkv|mp4|avi|flv|webm)$/i, "");
+
+        // Remove domain tags like [Fibwatch.Com], [1337x], etc
+        name = name.replace(/\[.*?\]/g, "");
+
+        // Remove content inside curly braces {source}, etc
+        name = name.replace(/\{.*?\}/g, "");
+
+        // Remove content inside square brackets BUT NOT year parentheses
+        // Only remove [non-year] patterns like [Dual Audio], [Hindi+Telugu]
+        name = name.replace(/\[(?!\d{4}\])[^\]]*\]/g, "");
+
+        // Replace dots with spaces
+        name = name.replace(/\./g, " ");
+
+        // Replace hyphens with spaces
+        name = name.replace(/-/g, " ");
+
+        // Remove content inside parentheses BUT keep year (YYYY format)
+        // This removes: (1080p), (source) but keeps (2021), (2022), etc
+        name = name.replace(/\((?!\d{4}\))[^)]*\)/g, "");
+
+        // Remove extra spaces and trim
+        name = name.replace(/\s+/g, " ").trim();
+
+        return name;
+      }
+
+      // ───────────────────────────────────────────────────────────
+      // IMDB Auto tvg-logo Fetcher
+      // ───────────────────────────────────────────────────────────
+
+      const IMDB_CORS_PROXIES = [
+        (url) =>
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+      ];
+
+      function saveOmdbApiKey() {
+        const input = document.getElementById("omdbApiKey");
+        let val = input.value.trim();
+        // If the user pasted a full OMDb URL instead of just the key, extract the key from it
+        const match = val.match(/[?&]apikey=([^&\s]+)/i);
+        if (match) val = match[1];
+        val = val.trim();
+        input.value = val; // reflect the cleaned-up key back into the box
+        localStorage.setItem("omdbApiKey", val);
+      }
+
+      function loadOmdbApiKey() {
+        const saved = localStorage.getItem("omdbApiKey") || "";
+        const input = document.getElementById("omdbApiKey");
+        if (input) input.value = saved;
+        return saved;
+      }
+
+      function getOmdbApiKey() {
+        const raw = (
+          document.getElementById("omdbApiKey")?.value ||
+          localStorage.getItem("omdbApiKey") ||
+          ""
+        ).trim();
+        const match = raw.match(/[?&]apikey=([^&\s]+)/i);
+        return (match ? match[1] : raw).trim();
+      }
+
+      // Primary: query the official OMDb API (real IMDB data) using clean title + year for accuracy.
+      async function fetchOmdbLogoForTitle(title) {
+        const apiKey = getOmdbApiKey();
+        if (!apiKey) return null;
+
+        const { name, year, isSeries } = cleanTitleForImdbSearch(title);
+        if (!name) return null;
+
+        const primaryType = isSeries ? "series" : "movie";
+        const altType = isSeries ? "movie" : "series";
+
+        // Try in order: (correct type + year) -> (correct type, no year) ->
+        // (alt type + year) -> (alt type, no year) -> (no type at all, no year)
+        const attempts = [
+          { type: primaryType, useYear: true },
+          { type: primaryType, useYear: false },
+          { type: altType, useYear: true },
+          { type: altType, useYear: false },
+          { type: null, useYear: false },
+        ];
+
+        for (const attempt of attempts) {
+          let url = `https://www.omdbapi.com/?apikey=${encodeURIComponent(apiKey)}&t=${encodeURIComponent(name)}`;
+          if (attempt.type) url += `&type=${attempt.type}`;
+          if (attempt.useYear && year) url += `&y=${encodeURIComponent(year)}`;
+
+          try {
+            const resp = await fetch(url);
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            if (
+              data &&
+              data.Response === "True" &&
+              data.Poster &&
+              data.Poster !== "N/A"
+            ) {
+              return data.Poster;
+            }
+          } catch (err) {
+            continue;
+          }
+        }
+        return null;
+      }
+
+      function sleep(ms) {
+        return new Promise((res) => setTimeout(res, ms));
+      }
+
+      // Clean a raw filename-style title down to a clean movie name + year, e.g.
+      // "Tuck Jagadish (2021) 1080p WEB-DL [Dual Audio] [Hindi+Telugu] x264" -> { name: "Tuck Jagadish", year: "2021" }
+      function cleanTitleForImdbSearch(raw) {
+        // Detect series BEFORE the season/episode marker gets stripped out below
+        const isSeries =
+          /\bS\d{1,2}(E\d{1,3})?\b/i.test(raw) ||
+          /\bSeason\s*\d+\b/i.test(raw) ||
+          /\bComplete\b/i.test(raw);
+        let s = extractGroupTitle(raw);
+        const yearMatch = s.match(/\b(19\d{2}|20\d{2})\b/);
+        const year = yearMatch ? yearMatch[1] : "";
+        // Strip the year (and anything from it onward, e.g. a trailing "(2021)") from the name
+        if (yearMatch) {
+          s = s.substring(0, yearMatch.index).trim();
+        }
+        s = s.replace(/[\(\[\-.\s]+$/, "").trim();
+        return { name: s || raw, year, isSeries };
+      }
+
+      // Upscale IMDB's CDN thumbnail to a nicer poster-sized image
+      function upgradeImdbImageUrl(url) {
+        if (!url) return url;
+        return url.replace(/\._V1_.*?\.jpg$/i, "._V1_FMjpg_UX400_.jpg");
+      }
+
+      // Fallback: IMDB's public search-suggestion endpoint (the same one imdb.com's own
+      // search box uses) through a CORS proxy. Used when no OMDb key is set, or OMDb misses.
+      async function fetchImdbSuggestionLogo(title) {
+        const { name, year } = cleanTitleForImdbSearch(title);
+        const query = year ? `${name} ${year}` : name;
+        if (!query) return null;
+
+        const firstChar = query.trim()[0]?.toLowerCase() || "_";
+        const safeChar = /[a-z0-9]/.test(firstChar) ? firstChar : "_";
+        const targetUrl = `https://v2.sg.media-imdb.com/suggestion/${safeChar}/${encodeURIComponent(
+          query,
+        )}.json`;
+
+        for (const buildProxyUrl of IMDB_CORS_PROXIES) {
+          try {
+            const resp = await fetch(buildProxyUrl(targetUrl));
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            const results = data && data.d ? data.d : [];
+            if (!results.length) return null;
+
+            const best =
+              results.find((r) => r.i && r.i.imageUrl && r.q === "feature") ||
+              results.find((r) => r.i && r.i.imageUrl);
+
+            if (best && best.i && best.i.imageUrl) {
+              return upgradeImdbImageUrl(best.i.imageUrl);
+            }
+            return null;
+          } catch (err) {
+            continue;
+          }
+        }
+        return null;
+      }
+
+      // Main entry point: try OMDb first (accurate, uses your API key), then fall back
+      // to the free IMDB suggestion proxy if OMDb has no key set or finds nothing.
+      async function fetchImdbLogoForTitle(title) {
+        // Use clean name for better search results
+        const cleanTitle = cleanContentName(title);
+        const omdbResult = await fetchOmdbLogoForTitle(cleanTitle);
+        if (omdbResult) return omdbResult;
+        return await fetchImdbSuggestionLogo(cleanTitle);
+      }
+
+      // Fetch IMDB poster logos for all (or only missing) movies, sequentially with a
+      // small delay to stay friendly to the free CORS proxies.
+      let logoFetchRunning = false;
+      async function fetchAllLogos(onlyMissing = false) {
+        if (movies.length === 0) return;
+        if (logoFetchRunning) return;
+        logoFetchRunning = true;
+
+        const statusEl = document.getElementById("logoFetchStatus");
+        const btn = document.getElementById("fetchLogosBtn");
+        const missBtn = document.getElementById("fetchMissingBtn");
+        if (btn) btn.disabled = true;
+        if (missBtn) missBtn.disabled = true;
+
+        const targets = movies
+          .map((m, idx) => idx)
+          .filter((idx) => !onlyMissing || !movies[idx].logo);
+
+        let done = 0;
+        for (const idx of targets) {
+          const movie = movies[idx];
+          if (statusEl) {
+            statusEl.textContent = `🔎 খোঁজা হচ্ছে (${done + 1}/${targets.length}): ${movie.title}`;
+          }
+          const rowStatus = document.getElementById(`logoStatus_${idx}`);
+          if (rowStatus) rowStatus.textContent = "⏳ খোঁজা হচ্ছে...";
+
+          try {
+            const logoUrl = await fetchImdbLogoForTitle(movie.title);
+            if (logoUrl) {
+              movie.logo = logoUrl;
+            } else if (rowStatus) {
+              rowStatus.textContent = "❌ পাওয়া যায়নি";
+            }
+          } catch (err) {
+            if (rowStatus) rowStatus.textContent = "❌ এরর";
+          }
+
+          done++;
+          // Re-render just this row's thumbnail/status without rebuilding the whole list
+          refreshMovieRow(idx);
+
+          // Be gentle with the free CORS proxy / IMDB endpoint
+          await sleep(400);
+        }
+
+        if (statusEl) {
+          statusEl.textContent = `✅ শেষ! ${done} টি মুভি প্রসেস হয়েছে। (${movies.filter((m) => m.logo).length}/${movies.length} টিতে logo পাওয়া গেছে)`;
+        }
+        if (btn) btn.disabled = false;
+        if (missBtn) missBtn.disabled = false;
+        logoFetchRunning = false;
+      }
+
+      // ── Add missing posters to an already-existing playlist (loaded in the
+      // GitHub Viewer box) that was uploaded earlier WITHOUT tvg-logo. ──────
+      let viewerPosterFetchRunning = false;
+
+      // Insert/replace the tvg-logo attribute on a single #EXTINF line.
+      function setTvgLogoOnLine(line, logoUrl) {
+        let newLine = line.replace(/\s*tvg-logo="[^"]*"/i, "");
+        newLine = newLine.replace(
+          /^(#EXTINF:-?\d*)/,
+          `$1 tvg-logo="${logoUrl}"`,
+        );
+        return newLine;
+      }
+
+      async function fetchMissingPostersInViewer() {
+        if (viewerPosterFetchRunning) return;
+
+        const box = document.getElementById("viewerContentBox");
+        const content = box ? box.value : "";
+        if (!content || !content.trim()) {
+          showViewerStatus(
+            "⚠️ আগে GitHub থেকে কোনো M3U file load করো!",
+            "text-yellow-400",
+          );
+          return;
+        }
+
+        const lines = content.split(/\r?\n/);
+
+        // Find every #EXTINF line that doesn't already have a tvg-logo
+        const targets = [];
+        for (let i = 0; i < lines.length; i++) {
+          const trimmed = lines[i].trim();
+          if (!trimmed.startsWith("#EXTINF:")) continue;
+          const logoMatch = trimmed.match(/tvg-logo="([^"]*)"/i);
+          const hasLogo = logoMatch && logoMatch[1].trim() !== "";
+          if (hasLogo) continue;
+          const commaIndex = trimmed.lastIndexOf(",");
+          const title =
+            commaIndex !== -1 ? trimmed.substring(commaIndex + 1).trim() : "";
+          if (title) targets.push({ lineIndex: i, title });
+        }
+
+        if (targets.length === 0) {
+          showViewerStatus(
+            "✅ এই ফাইলের সব entry-তে আগে থেকেই poster (tvg-logo) আছে!",
+            "text-green-400",
+          );
+          return;
+        }
+
+        viewerPosterFetchRunning = true;
+        const btn = document.getElementById("fetchViewerPostersBtn");
+        if (btn) btn.disabled = true;
+
+        let found = 0;
+        for (let done = 0; done < targets.length; done++) {
+          const target = targets[done];
+          showViewerStatus(
+            `🔎 Poster খোঁজা হচ্ছে (${done + 1}/${targets.length}): ${target.title}`,
+            "text-amber-400",
+          );
+
+          try {
+            const logoUrl = await fetchImdbLogoForTitle(target.title);
+            if (logoUrl) {
+              lines[target.lineIndex] = setTvgLogoOnLine(
+                lines[target.lineIndex],
+                logoUrl,
+              );
+              found++;
+              // Reflect progress live in the textarea as it goes
+              box.value = lines.join("\n");
+            }
+          } catch (err) {
+            // skip this one, move on to the next
+          }
+
+          // Be gentle with the free CORS proxy / OMDb endpoint
+          await sleep(450);
+        }
+
+        box.value = lines.join("\n");
+        viewerPosterFetchRunning = false;
+        if (btn) btn.disabled = false;
+
+        showViewerStatus(
+          `✅ শেষ! ${targets.length} টি missing entry চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। এখন "🚀 GitHub-এ Save করো" চেপে save করো।`,
+          found > 0 ? "text-green-400" : "text-yellow-400",
+        );
+      }
+
+      // Lightweight re-render of a single movie row (used during the fetch loop)
+      function refreshMovieRow(idx) {
+        const row = document.getElementById(`movieRow_${idx}`);
+        const movie = movies[idx];
+        if (!row || !movie) return;
+
+        const logoImg = movie.logo
+          ? `<img src="${movie.logo}" class="w-8 h-11 object-cover rounded border border-gray-600 flex-shrink-0" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'w-8 h-11 flex items-center justify-center bg-gray-800 text-xs rounded border border-red-700 flex-shrink-0', textContent:'❌'}))" />`
+          : `<div class="w-8 h-11 flex items-center justify-center bg-gray-800 text-xs rounded border border-gray-600 flex-shrink-0">—</div>`;
+
+        row.innerHTML = `
+                    ${logoImg}
+                    <span class="truncate font-medium max-w-xs flex-grow" title="${movie.title}">${movie.title}</span>
+                    <span id="logoStatus_${idx}" class="text-xs text-gray-400 whitespace-nowrap">${movie.logo ? "✅ logo" : "❌ পাওয়া যায়নি"}</span>
+                    <span class="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-indigo-700 whitespace-nowrap">${globalGroup}</span>
+                    <button onclick="editLogoManually(${idx})" title="Logo লিংক নিজে দাও / ঠিক করো" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">✏️</button>
+                `;
+      }
+
       // Generate Final M3U Content
       function generateM3U() {
         if (movies.length === 0) return alert("কোনো মুভি ফাইল আপলোড করা হয়নি!");
@@ -704,11 +1153,12 @@
         let m3uString = "#EXTM3U\n";
         movies.forEach((movie) => {
           let extinf = movie.info;
-          // Dynamically inject the global group title into the #EXTINF metadata
+          // Dynamically inject the global group title (+ tvg-logo if found) into the #EXTINF metadata
           if (extinf.includes("#EXTINF:")) {
+            const logoAttr = movie.logo ? `tvg-logo="${movie.logo}" ` : "";
             extinf = extinf.replace(
               "#EXTINF:",
-              `#EXTINF:-1 group-title="${globalGroup}" `,
+              `#EXTINF:-1 ${logoAttr}group-title="${globalGroup}" `,
             );
           }
           // Append EXTVLCOPT lines (referrer, user-agent, etc.) before the URL
@@ -1770,6 +2220,7 @@
       window.addEventListener("DOMContentLoaded", () => {
         loadOwnConfig();
         loadViewerConfig();
+        loadOmdbApiKey();
       });
     </script>
   </body>
