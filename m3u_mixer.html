@@ -3,14 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Cache-Control"
+      content="no-cache, no-store, must-revalidate"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <!-- APP_VERSION: 2026-07-01-001 -->
     <title>M3U Playlist Bulk Group Customizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+    <!-- New version notification bar (hidden by default) -->
+    <div
+      id="updateNotifyBar"
+      class="hidden fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-gray-900 text-center py-2 px-4 font-semibold shadow-lg"
+    >
+      🚀 নতুন ভার্সন পাওয়া গেছে!
+      <button
+        id="updateBtn"
+        class="ml-3 bg-gray-900 text-yellow-400 px-4 py-1 rounded hover:bg-gray-800"
+      >
+        🔄 Update Content
+      </button>
+    </div>
     <div class="container mx-auto px-4 py-8 max-w-4xl">
       <h1 class="text-3xl font-extrabold text-center mb-8 text-indigo-400">
         🎬 M3U Bulk Group Customizer
       </h1>
+
+      <div class="text-center mb-6">
+        <button
+          id="updateBtnManual"
+          class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm px-4 py-1.5 rounded-lg border border-gray-600"
+        >
+          🔄 Update Content
+        </button>
+      </div>
 
       <!-- Step 1: Upload M3U Files -->
       <div
@@ -625,6 +654,56 @@
       let finalM3UContent = "";
       let globalGroup = "Default";
 
+      // ── Auto-update / Cache-busting system ──────────────────
+      // এই ভার্সনটা মিলিয়ে দেখা হয় সার্ভারের ফাইলের সাথে।
+      // নতুন ভার্সন সার্ভারে আপলোড করার সময় <head> এর
+      // <!-- APP_VERSION: ... --> কমেন্টের ভ্যালুটা বদলে দিলেই
+      // ব্রাউজারে খোলা থাকা পুরনো পেজগুলো অটো নতুন ভার্সনের নোটিফিকেশন দেখাবে।
+      const CURRENT_APP_VERSION = "2026-07-01-001";
+      const UPDATE_CHECK_INTERVAL_MS = 3 * 60 * 1000; // প্রতি ৩ মিনিটে চেক
+
+      function hardReload() {
+        // ক্যাশ এড়িয়ে সার্ভার থেকে ফ্রেশ কপি নিয়ে আসে
+        const url = new URL(window.location.href);
+        url.searchParams.set("_v", Date.now());
+        window.location.href = url.toString();
+      }
+
+      async function checkForNewVersion() {
+        try {
+          const res = await fetch(
+            window.location.pathname + "?_check=" + Date.now(),
+            { cache: "no-store" },
+          );
+          if (!res.ok) return;
+          const html = await res.text();
+          const match = html.match(/<!--\s*APP_VERSION:\s*([^\s]+)\s*-->/i);
+          if (match && match[1] && match[1] !== CURRENT_APP_VERSION) {
+            document
+              .getElementById("updateNotifyBar")
+              .classList.remove("hidden");
+          }
+        } catch (err) {
+          // নেটওয়ার্ক না থাকলে চুপচাপ স্কিপ করো
+          console.warn("Update check failed:", err);
+        }
+      }
+
+      document
+        .getElementById("updateBtn")
+        .addEventListener("click", hardReload);
+      document
+        .getElementById("updateBtnManual")
+        .addEventListener("click", hardReload);
+
+      // পেজ লোড হওয়ার কিছুক্ষণ পর প্রথম চেক, তারপর নিয়মিত ইন্টারভালে
+      setTimeout(checkForNewVersion, 5000);
+      setInterval(checkForNewVersion, UPDATE_CHECK_INTERVAL_MS);
+      // ট্যাব আবার ফোকাস হলেও চেক করো (অন্য ট্যাব থেকে ফিরে আসলে)
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") checkForNewVersion();
+      });
+
       // Listen for file uploads
       document
         .getElementById("m3uFiles")
@@ -1152,15 +1231,18 @@
 
         let m3uString = "#EXTM3U\n";
         movies.forEach((movie) => {
-          let extinf = movie.info;
-          // Dynamically inject the global group title (+ tvg-logo if found) into the #EXTINF metadata
-          if (extinf.includes("#EXTINF:")) {
-            const logoAttr = movie.logo ? `tvg-logo="${movie.logo}" ` : "";
-            extinf = extinf.replace(
-              "#EXTINF:",
-              `#EXTINF:-1 ${logoAttr}group-title="${globalGroup}" `,
-            );
+          // Rebuild the #EXTINF line from scratch so there's exactly one
+          // duration value and clean " , " spacing around the title.
+          const logoAttr = movie.logo ? `tvg-logo="${movie.logo}" ` : "";
+          // [Fibwatch.Com] title-এর শুরুতে থাকলে সেটাকে শেষে নিয়ে যাও
+          let displayTitle = movie.title;
+          const fibwatchMatch = displayTitle.match(
+            /^\[Fibwatch\.Com\]\s*(.*)$/i,
+          );
+          if (fibwatchMatch) {
+            displayTitle = `${fibwatchMatch[1]} [Fibwatch.Com]`;
           }
+          let extinf = `#EXTINF:-1 ${logoAttr}group-title="${globalGroup}" , ${displayTitle}`;
           // Append EXTVLCOPT lines (referrer, user-agent, etc.) before the URL
           const vlcLines =
             movie.vlcOpts && movie.vlcOpts.length > 0
