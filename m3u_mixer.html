@@ -12,6 +12,8 @@
     <!-- APP_VERSION: 2026-07-01-001 -->
     <title>M3U Playlist Bulk Group Customizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Monaco Editor (VS Code এর মূল এডিটর) — শুধু Fullscreen Editor-এর জন্য -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.49.0/min/vs/loader.js"></script>
   </head>
   <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
     <!-- New version notification bar (hidden by default) -->
@@ -399,6 +401,14 @@
                 🖼️ Missing Poster যোগ করো
               </button>
               <button
+                onclick="stopMissingPosterFetch()"
+                id="stopViewerPostersBtn"
+                class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition hidden"
+                title="Poster খোঁজার কাজ থামিয়ে দাও"
+              >
+                ⏹️ Stop
+              </button>
+              <button
                 onclick="openViewerFullscreen()"
                 class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
                 title="Fullscreen"
@@ -609,13 +619,13 @@
       </div>
     </div>
 
-    <!-- Fullscreen Editor Overlay -->
+    <!-- Fullscreen Editor Overlay (Monaco / VS Code Editor) -->
     <div
       id="fullscreenOverlay"
       class="hidden fixed inset-0 z-50 bg-gray-950 flex flex-col"
     >
       <div
-        class="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 flex-shrink-0"
+        class="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 flex-shrink-0 flex-wrap gap-2"
       >
         <p class="text-sm text-gray-300">
           📄
@@ -637,17 +647,108 @@
           </button>
         </div>
       </div>
-      <textarea
-        id="fsContentBox"
-        spellcheck="false"
-        class="flex-1 w-full bg-gray-950 text-green-300 text-xs font-mono px-4 py-3 focus:outline-none resize-none border-0"
-        placeholder="Content loading..."
-      ></textarea>
+
+      <!-- Monaco Toolbar -->
+      <div
+        class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800/70 border-b border-gray-700 flex-shrink-0 flex-wrap text-xs"
+      >
+        <button
+          onclick="fsScrollTop()"
+          title="Scroll to Top"
+          class="fs-tool-btn"
+        >
+          ⤒ Top
+        </button>
+        <button
+          onclick="fsScrollBottom()"
+          title="Scroll to Bottom"
+          class="fs-tool-btn"
+        >
+          ⤓ Bottom
+        </button>
+        <span class="w-px h-5 bg-gray-600 mx-1"></span>
+        <button onclick="fsFind()" title="Find (Ctrl+F)" class="fs-tool-btn">
+          🔍 Find
+        </button>
+        <button
+          onclick="fsFindReplace()"
+          title="Find & Replace (Ctrl+H)"
+          class="fs-tool-btn"
+        >
+          🔁 Replace
+        </button>
+        <span class="w-px h-5 bg-gray-600 mx-1"></span>
+        <button onclick="fsUndo()" title="Undo (Ctrl+Z)" class="fs-tool-btn">
+          ↺ Undo
+        </button>
+        <button onclick="fsRedo()" title="Redo (Ctrl+Y)" class="fs-tool-btn">
+          ↻ Redo
+        </button>
+        <span class="w-px h-5 bg-gray-600 mx-1"></span>
+        <button
+          id="fsWordWrapBtn"
+          onclick="fsToggleWordWrap()"
+          title="Word Wrap On/Off"
+          class="fs-tool-btn"
+        >
+          ↵ Wrap: ON
+        </button>
+        <button
+          id="fsWhitespaceBtn"
+          onclick="fsToggleWhitespace()"
+          title="Show/Hide Whitespace"
+          class="fs-tool-btn"
+        >
+          · Whitespace: OFF
+        </button>
+        <button
+          id="fsTabSizeBtn"
+          onclick="fsToggleTabSize()"
+          title="Tab Size 2/4"
+          class="fs-tool-btn"
+        >
+          ⇥ Tab: 4
+        </button>
+        <button
+          id="fsMinimapBtn"
+          onclick="fsToggleMinimap()"
+          title="Minimap On/Off"
+          class="fs-tool-btn"
+        >
+          🗺️ Minimap: ON
+        </button>
+        <span class="text-gray-500 ml-auto hidden sm:inline"
+          >Ctrl+F Find • Ctrl+H Replace • Ctrl+G Go to Line • Ctrl+Z/Y
+          Undo/Redo</span
+        >
+      </div>
+
+      <div id="fsMonacoContainer" class="flex-1 w-full min-h-0"></div>
+
       <p
         id="fsStatus"
         class="hidden px-4 py-2 text-sm font-medium text-center bg-gray-900 flex-shrink-0"
       ></p>
     </div>
+
+    <style>
+      .fs-tool-btn {
+        background: #374151;
+        color: #e5e7eb;
+        padding: 0.3rem 0.6rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        transition: background 0.15s;
+        white-space: nowrap;
+      }
+      .fs-tool-btn:hover {
+        background: #4b5563;
+      }
+      .fs-tool-btn.active {
+        background: #4f46e5;
+        color: #fff;
+      }
+    </style>
 
     <script>
       let movies = [];
@@ -796,6 +897,7 @@
                     <span id="logoStatus_${idx}" class="text-xs text-gray-400 whitespace-nowrap">${movie.logo ? "✅ logo" : "— logo নেই"}</span>
                     <span class="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-indigo-700 whitespace-nowrap">${globalGroup}</span>
                     <button onclick="editLogoManually(${idx})" title="Logo লিংক নিজে দাও / ঠিক করো" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">✏️</button>
+                    <button onclick="setLogoByImdbId(${idx})" title="IMDB Content ID দিয়ে poster আনো (যেমন: tt0800369)" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">🎬</button>
                 `;
           container.appendChild(div);
         });
@@ -812,6 +914,49 @@
         if (val === null) return;
         movie.logo = val.trim();
         applyBulkGroup();
+      }
+
+      // ── Let user manually type an IMDB content ID (ttXXXXXXX) for one movie;
+      // automatically calls OMDb with that exact ID and sets the poster. ──
+      async function setLogoByImdbId(idx) {
+        const movie = movies[idx];
+        if (!movie) return;
+
+        const raw = prompt(
+          `"${movie.title}" এর জন্য IMDB Content ID দাও (যেমন: tt0800369):`,
+          "",
+        );
+        if (raw === null) return;
+
+        // Accept a bare ID (tt0800369) or a full IMDB URL pasted in
+        const match = raw.trim().match(/tt\d{6,9}/i);
+        const imdbId = match ? match[0].toLowerCase() : "";
+        if (!imdbId) {
+          alert(
+            "সঠিক IMDB ID দাওনি। ফরম্যাট হবে: tt0800369 (অথবা পুরো imdb.com/title/... লিংক পেস্ট করলেও চলবে)",
+          );
+          return;
+        }
+
+        const apiKey = getOmdbApiKey();
+        if (!apiKey) {
+          alert("আগে উপরে OMDb API Key বসাও, তারপর এই ফিচার ব্যবহার করো।");
+          return;
+        }
+
+        const rowStatus = document.getElementById(`logoStatus_${idx}`);
+        if (rowStatus) rowStatus.textContent = "⏳ খোঁজা হচ্ছে...";
+
+        const posterUrl = await fetchOmdbById(imdbId);
+        if (posterUrl) {
+          movie.logo = posterUrl;
+          applyBulkGroup();
+        } else {
+          if (rowStatus) rowStatus.textContent = "❌ পোস্টার পাওয়া যায়নি";
+          alert(
+            `এই IMDB ID (${imdbId}) দিয়ে OMDb-তে কোনো poster পাওয়া যায়নি। ID টা আবার চেক করো।`,
+          );
+        }
       }
 
       // ── Auto-detect group-title from content filename ────────
@@ -1050,13 +1195,79 @@
         return null;
       }
 
-      // Main entry point: try OMDb first (accurate, uses your API key), then fall back
-      // to the free IMDB suggestion proxy if OMDb has no key set or finds nothing.
+      // Search IMDB's own "find" page (the same page imdb.com/find uses) through a
+      // CORS proxy, and pull out the IMDB ID (ttXXXXXXX) of the first/best matching
+      // title result. This is IMDB's own search ranking, so it's usually very accurate.
+      async function fetchImdbIdViaFindPage(query) {
+        if (!query) return null;
+        const targetUrl = `https://www.imdb.com/find/?q=${encodeURIComponent(query)}&s=tt&ref_=fn_nv_srb_sm`;
+
+        for (const buildProxyUrl of IMDB_CORS_PROXIES) {
+          try {
+            const resp = await fetch(buildProxyUrl(targetUrl));
+            if (!resp.ok) continue;
+            const html = await resp.text();
+            // Grab every /title/ttXXXXXXX/ link in ranked order and take the first one
+            const matches = [...html.matchAll(/\/title\/(tt\d{6,9})\//g)];
+            if (matches.length) return matches[0][1];
+            return null;
+          } catch (err) {
+            continue;
+          }
+        }
+        return null;
+      }
+
+      // Query OMDb directly by IMDB ID (i=ttXXXXXXX). This is an exact lookup, so it's
+      // far more reliable than a fuzzy title-text (t=) search.
+      async function fetchOmdbById(imdbId) {
+        const apiKey = getOmdbApiKey();
+        if (!apiKey || !imdbId) return null;
+        try {
+          const url = `https://www.omdbapi.com/?apikey=${encodeURIComponent(apiKey)}&i=${encodeURIComponent(imdbId)}`;
+          const resp = await fetch(url);
+          if (!resp.ok) return null;
+          const data = await resp.json();
+          if (
+            data &&
+            data.Response === "True" &&
+            data.Poster &&
+            data.Poster !== "N/A"
+          ) {
+            return data.Poster;
+          }
+        } catch (err) {
+          // ignore, caller will fall back
+        }
+        return null;
+      }
+
+      // Most accurate path: search IMDB's find page for the clean title(+year) to get
+      // its exact IMDB ID, then fetch that ID directly from OMDb (i= lookup).
+      async function fetchOmdbLogoViaImdbId(title) {
+        const { name, year } = cleanTitleForImdbSearch(title);
+        if (!name) return null;
+        const query = year ? `${name} ${year}` : name;
+
+        const imdbId = await fetchImdbIdViaFindPage(query);
+        if (!imdbId) return null;
+        return await fetchOmdbById(imdbId);
+      }
+
+      // Main entry point. Order (most to least accurate):
+      // 1) IMDB find-page search -> exact IMDB ID -> OMDb lookup by ID (most accurate)
+      // 2) OMDb title-text (t=) search
+      // 3) Free IMDB suggestion proxy
       async function fetchImdbLogoForTitle(title) {
         // Use clean name for better search results
         const cleanTitle = cleanContentName(title);
+
+        const idResult = await fetchOmdbLogoViaImdbId(cleanTitle);
+        if (idResult) return idResult;
+
         const omdbResult = await fetchOmdbLogoForTitle(cleanTitle);
         if (omdbResult) return omdbResult;
+
         return await fetchImdbSuggestionLogo(cleanTitle);
       }
 
@@ -1117,6 +1328,15 @@
       // ── Add missing posters to an already-existing playlist (loaded in the
       // GitHub Viewer box) that was uploaded earlier WITHOUT tvg-logo. ──────
       let viewerPosterFetchRunning = false;
+      let viewerPosterFetchStopRequested = false;
+
+      function stopMissingPosterFetch() {
+        if (!viewerPosterFetchRunning) return;
+        viewerPosterFetchStopRequested = true;
+        const stopBtn = document.getElementById("stopViewerPostersBtn");
+        if (stopBtn) stopBtn.disabled = true;
+        showViewerStatus("⏹️ থামানো হচ্ছে...", "text-yellow-400", false);
+      }
 
       // Insert/replace the tvg-logo attribute on a single #EXTINF line.
       function setTvgLogoOnLine(line, logoUrl) {
@@ -1166,15 +1386,31 @@
         }
 
         viewerPosterFetchRunning = true;
+        viewerPosterFetchStopRequested = false;
         const btn = document.getElementById("fetchViewerPostersBtn");
         if (btn) btn.disabled = true;
+        const stopBtn = document.getElementById("stopViewerPostersBtn");
+        if (stopBtn) {
+          stopBtn.disabled = false;
+          stopBtn.classList.remove("hidden");
+        }
 
+        const totalStr = String(targets.length);
         let found = 0;
+        let processed = 0;
+        let stopped = false;
         for (let done = 0; done < targets.length; done++) {
+          if (viewerPosterFetchStopRequested) {
+            stopped = true;
+            break;
+          }
+
           const target = targets[done];
+          const doneStr = String(done + 1).padStart(2, "0");
           showViewerStatus(
-            `🔎 Poster খোঁজা হচ্ছে (${done + 1}/${targets.length}): ${target.title}`,
+            `🔎 Poster খোঁজা হচ্ছে (${doneStr}/${totalStr}): ${target.title}`,
             "text-amber-400",
+            false,
           );
 
           try {
@@ -1192,18 +1428,37 @@
             // skip this one, move on to the next
           }
 
+          processed++;
+
+          if (viewerPosterFetchStopRequested) {
+            stopped = true;
+            break;
+          }
+
           // Be gentle with the free CORS proxy / OMDb endpoint
           await sleep(450);
         }
 
         box.value = lines.join("\n");
         viewerPosterFetchRunning = false;
+        viewerPosterFetchStopRequested = false;
         if (btn) btn.disabled = false;
+        if (stopBtn) {
+          stopBtn.disabled = false;
+          stopBtn.classList.add("hidden");
+        }
 
-        showViewerStatus(
-          `✅ শেষ! ${targets.length} টি missing entry চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। এখন "🚀 GitHub-এ Save করো" চেপে save করো।`,
-          found > 0 ? "text-green-400" : "text-yellow-400",
-        );
+        if (stopped) {
+          showViewerStatus(
+            `⏹️ থামানো হয়েছে! ${processed}/${targets.length} টি চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। "🚀 GitHub-এ Save করো" চেপে save করো।`,
+            "text-yellow-400",
+          );
+        } else {
+          showViewerStatus(
+            `✅ শেষ! ${targets.length} টি missing entry চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। এখন "🚀 GitHub-এ Save করো" চেপে save করো।`,
+            found > 0 ? "text-green-400" : "text-yellow-400",
+          );
+        }
       }
 
       // Lightweight re-render of a single movie row (used during the fetch loop)
@@ -1222,6 +1477,7 @@
                     <span id="logoStatus_${idx}" class="text-xs text-gray-400 whitespace-nowrap">${movie.logo ? "✅ logo" : "❌ পাওয়া যায়নি"}</span>
                     <span class="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-indigo-700 whitespace-nowrap">${globalGroup}</span>
                     <button onclick="editLogoManually(${idx})" title="Logo লিংক নিজে দাও / ঠিক করো" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">✏️</button>
+                    <button onclick="setLogoByImdbId(${idx})" title="IMDB Content ID দিয়ে poster আনো (যেমন: tt0800369)" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">🎬</button>
                 `;
       }
 
@@ -2091,12 +2347,24 @@
         }
       }
 
-      function showViewerStatus(msg, colorClass) {
+      let viewerStatusHideTimeout = null;
+      function showViewerStatus(msg, colorClass, autoHide = true) {
         const el = document.getElementById("viewerStatus");
         el.textContent = msg;
         el.className = `mt-2 text-sm font-medium text-center ${colorClass}`;
         el.classList.remove("hidden");
-        setTimeout(() => el.classList.add("hidden"), 4000);
+        // Cancel any previously scheduled auto-hide so an older timeout
+        // doesn't hide a newer message (was causing the blink bug).
+        if (viewerStatusHideTimeout) {
+          clearTimeout(viewerStatusHideTimeout);
+          viewerStatusHideTimeout = null;
+        }
+        if (autoHide) {
+          viewerStatusHideTimeout = setTimeout(
+            () => el.classList.add("hidden"),
+            4000,
+          );
+        }
       }
 
       // ── Repo File Browser ────────────────────────────────────
@@ -2255,23 +2523,120 @@
         listRepoFiles(prev);
       }
 
-      // ── Fullscreen Editor ────────────────────────────────────
-      function openViewerFullscreen() {
+      // ── Fullscreen Editor (Monaco) ────────────────────────────
+      let fsMonacoEditor = null;
+      let fsMonacoReadyPromise = null;
+      let fsWordWrapOn = true;
+      let fsWhitespaceOn = false;
+      let fsTabSize = 4;
+      let fsMinimapOn = true;
+
+      function loadMonaco() {
+        if (fsMonacoReadyPromise) return fsMonacoReadyPromise;
+        fsMonacoReadyPromise = new Promise((resolve, reject) => {
+          if (window.monaco) {
+            resolve(window.monaco);
+            return;
+          }
+          if (typeof require === "undefined" || !window.require) {
+            reject(
+              new Error("Monaco loader.js লোড হয়নি (ইন্টারনেট চেক করুন)"),
+            );
+            return;
+          }
+          window.require.config({
+            paths: {
+              vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.49.0/min/vs",
+            },
+          });
+          window.require(
+            ["vs/editor/editor.main"],
+            () => {
+              resolve(window.monaco);
+            },
+            (err) => reject(err),
+          );
+        });
+        return fsMonacoReadyPromise;
+      }
+
+      function createFsMonacoEditor(content) {
+        fsMonacoEditor = monaco.editor.create(
+          document.getElementById("fsMonacoContainer"),
+          {
+            value: content,
+            language: "ini", // M3U-এর #EXTINF / key="value" ফরম্যাটের কাছাকাছি হাইলাইট
+            theme: "vs-dark",
+            automaticLayout: true,
+            fontSize: 13,
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            lineNumbers: "on",
+            renderLineHighlight: "all",
+            selectionHighlight: true,
+            occurrencesHighlight: true,
+            matchBrackets: "always",
+            autoClosingBrackets: "always",
+            autoClosingQuotes: "always",
+            autoIndent: "full",
+            tabSize: fsTabSize,
+            insertSpaces: true,
+            wordWrap: fsWordWrapOn ? "on" : "off",
+            folding: true,
+            minimap: { enabled: fsMinimapOn },
+            smoothScrolling: true,
+            mouseWheelZoom: true,
+            bracketPairColorization: { enabled: true },
+            renderWhitespace: fsWhitespaceOn ? "all" : "none",
+            scrollBeyondLastLine: true,
+            cursorBlinking: "smooth",
+          },
+        );
+
+        fsMonacoEditor.onDidChangeModelContent(() => {
+          const lines = fsMonacoEditor.getModel().getLineCount();
+          document.getElementById("fsLineCount").textContent = `${lines} লাইন`;
+        });
+      }
+
+      async function openViewerFullscreen() {
         const content = document.getElementById("viewerContentBox").value;
         const label = document.getElementById("viewerFileLabel").textContent;
         const lineCount =
           document.getElementById("viewerLineCount").textContent;
-        document.getElementById("fsContentBox").value = content;
         document.getElementById("fsFileLabel").textContent = label;
         document.getElementById("fsLineCount").textContent = lineCount;
         document.getElementById("fullscreenOverlay").classList.remove("hidden");
         document.body.style.overflow = "hidden";
-        document.getElementById("fsContentBox").focus();
+
+        const fsStatus = document.getElementById("fsStatus");
+        try {
+          fsStatus.classList.remove("hidden");
+          fsStatus.textContent = "⏳ Monaco Editor লোড হচ্ছে...";
+          await loadMonaco();
+          fsStatus.classList.add("hidden");
+
+          if (fsMonacoEditor) {
+            fsMonacoEditor.setValue(content);
+          } else {
+            createFsMonacoEditor(content);
+          }
+          updateFsToolbarUI();
+          fsMonacoEditor.focus();
+        } catch (err) {
+          fsStatus.classList.remove("hidden");
+          fsStatus.className =
+            "px-4 py-2 text-sm font-medium text-center bg-gray-900 flex-shrink-0 text-red-400";
+          fsStatus.textContent =
+            "❌ Monaco Editor লোড করা যায়নি: " + err.message;
+        }
       }
 
       function closeViewerFullscreen() {
         // Sync content back to main editor
-        const fsContent = document.getElementById("fsContentBox").value;
+        const fsContent = fsMonacoEditor
+          ? fsMonacoEditor.getValue()
+          : document.getElementById("viewerContentBox").value;
         document.getElementById("viewerContentBox").value = fsContent;
         const lines = fsContent.split("\n").length;
         document.getElementById("viewerLineCount").textContent =
@@ -2287,7 +2652,104 @@
         await pushViewerContent();
       }
 
-      // ESC key closes fullscreen
+      // ── Fullscreen Toolbar Actions ────────────────────────────
+      function fsScrollTop() {
+        if (!fsMonacoEditor) return;
+        fsMonacoEditor.setScrollPosition({ scrollTop: 0 });
+        fsMonacoEditor.setPosition({ lineNumber: 1, column: 1 });
+        fsMonacoEditor.focus();
+      }
+
+      function fsScrollBottom() {
+        if (!fsMonacoEditor) return;
+        const lastLine = fsMonacoEditor.getModel().getLineCount();
+        fsMonacoEditor.revealLine(lastLine);
+        fsMonacoEditor.setPosition({
+          lineNumber: lastLine,
+          column: fsMonacoEditor.getModel().getLineMaxColumn(lastLine),
+        });
+        fsMonacoEditor.focus();
+      }
+
+      function fsFind() {
+        if (!fsMonacoEditor) return;
+        fsMonacoEditor.getAction("actions.find").run();
+      }
+
+      function fsFindReplace() {
+        if (!fsMonacoEditor) return;
+        fsMonacoEditor.getAction("editor.action.startFindReplaceAction").run();
+      }
+
+      function fsUndo() {
+        if (!fsMonacoEditor) return;
+        fsMonacoEditor.trigger("toolbar", "undo");
+        fsMonacoEditor.focus();
+      }
+
+      function fsRedo() {
+        if (!fsMonacoEditor) return;
+        fsMonacoEditor.trigger("toolbar", "redo");
+        fsMonacoEditor.focus();
+      }
+
+      function fsToggleWordWrap() {
+        fsWordWrapOn = !fsWordWrapOn;
+        if (fsMonacoEditor) {
+          fsMonacoEditor.updateOptions({
+            wordWrap: fsWordWrapOn ? "on" : "off",
+          });
+        }
+        updateFsToolbarUI();
+      }
+
+      function fsToggleWhitespace() {
+        fsWhitespaceOn = !fsWhitespaceOn;
+        if (fsMonacoEditor) {
+          fsMonacoEditor.updateOptions({
+            renderWhitespace: fsWhitespaceOn ? "all" : "none",
+          });
+        }
+        updateFsToolbarUI();
+      }
+
+      function fsToggleTabSize() {
+        fsTabSize = fsTabSize === 4 ? 2 : 4;
+        if (fsMonacoEditor) {
+          fsMonacoEditor.updateOptions({ tabSize: fsTabSize });
+        }
+        updateFsToolbarUI();
+      }
+
+      function fsToggleMinimap() {
+        fsMinimapOn = !fsMinimapOn;
+        if (fsMonacoEditor) {
+          fsMonacoEditor.updateOptions({
+            minimap: { enabled: fsMinimapOn },
+          });
+        }
+        updateFsToolbarUI();
+      }
+
+      function updateFsToolbarUI() {
+        const wrapBtn = document.getElementById("fsWordWrapBtn");
+        wrapBtn.textContent = `↵ Wrap: ${fsWordWrapOn ? "ON" : "OFF"}`;
+        wrapBtn.classList.toggle("active", fsWordWrapOn);
+
+        const wsBtn = document.getElementById("fsWhitespaceBtn");
+        wsBtn.textContent = `· Whitespace: ${fsWhitespaceOn ? "ON" : "OFF"}`;
+        wsBtn.classList.toggle("active", fsWhitespaceOn);
+
+        const tabBtn = document.getElementById("fsTabSizeBtn");
+        tabBtn.textContent = `⇥ Tab: ${fsTabSize}`;
+
+        const mmBtn = document.getElementById("fsMinimapBtn");
+        mmBtn.textContent = `🗺️ Minimap: ${fsMinimapOn ? "ON" : "OFF"}`;
+        mmBtn.classList.toggle("active", fsMinimapOn);
+      }
+
+      // ESC key closes fullscreen (Monaco নিজেই Find/Replace উইজেট খোলা
+      // থাকলে সেটা আগে বন্ধ করে; কিছু খোলা না থাকলে fullscreen বন্ধ হবে)
       document.addEventListener("keydown", (e) => {
         if (
           e.key === "Escape" &&
@@ -2295,6 +2757,10 @@
             .getElementById("fullscreenOverlay")
             .classList.contains("hidden")
         ) {
+          const findWidget = document.querySelector(
+            "#fsMonacoContainer .find-widget.visible",
+          );
+          if (findWidget) return; // Monaco নিজে হ্যান্ডেল করবে
           closeViewerFullscreen();
         }
       });
