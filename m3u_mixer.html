@@ -75,7 +75,7 @@
             >সব মুভির জন্য কমন গ্রুপের নাম দাও:</label
           >
           <!-- Existing groups from repo -->
-          <div class="flex gap-2 mb-2">
+          <div class="flex flex-wrap gap-1 mb-2">
             <select
               id="groupDropdown"
               onchange="onGroupDropdownChange()"
@@ -94,7 +94,7 @@
           </div>
           <p id="groupLoadStatus" class="text-xs text-gray-500 mb-2 hidden"></p>
           <!-- Custom / manual input -->
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-1">
             <input
               type="text"
               id="bulkGroupName"
@@ -409,6 +409,14 @@
                 ⏹️ Stop
               </button>
               <button
+                onclick="showManualMissingPosters()"
+                id="showManualMissingPostersBtn"
+                class="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+                title="যেসব entry-তে poster নেই তাদের একটা লিস্ট দেখাবে, প্রতিটার জন্য নিজে logo দিতে পারবে অথবা IMDB Content ID দিয়ে poster আনতে পারবে।"
+              >
+                🧑‍💻 Missing Poster ম্যানুয়ালি যোগ করো
+              </button>
+              <button
                 onclick="openViewerFullscreen()"
                 class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
                 title="Fullscreen"
@@ -424,6 +432,40 @@
             poster বসিয়ে দেবে — এরপর "GitHub-এ Save করো" চাপলে সেটা আপলোড হবে।
             উপরে OMDb API key দিয়ে রাখলে result আরও ভালো হবে।
           </p>
+
+          <!-- Manual Missing Poster List -->
+          <div
+            id="viewerManualPosterSection"
+            class="hidden mb-4 bg-gray-900 rounded-lg border border-gray-700 p-3"
+          >
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="text-sm font-semibold text-gray-300">
+                মিসিং পোস্টার পাওয়া গেছে:
+                <span id="viewerMissingCount" class="text-cyan-400">0</span>
+                টি
+              </h3>
+              <button
+                onclick="
+                  document
+                    .getElementById('viewerManualPosterSection')
+                    .classList.add('hidden')
+                "
+                class="text-gray-400 hover:text-white text-xs"
+                title="লিস্ট বন্ধ করো"
+              >
+                ✖ বন্ধ করো
+              </button>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">
+              * প্রতিটা entry-এর পাশে ✏️ চাপলে নিজে poster URL দিতে পারবে, অথবা
+              🎬 চাপলে IMDB Content ID (যেমন: tt0800369) দিয়ে OMDb থেকে poster
+              আনতে পারবে। সব শেষে "🚀 GitHub-এ Save করো" চেপে save করো।
+            </p>
+            <div
+              id="viewerMissingList"
+              class="space-y-2 max-h-72 overflow-y-auto pr-2"
+            ></div>
+          </div>
 
           <!-- Hidden file input for viewer upload -->
           <input
@@ -1457,6 +1499,159 @@
           showViewerStatus(
             `✅ শেষ! ${targets.length} টি missing entry চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। এখন "🚀 GitHub-এ Save করো" চেপে save করো।`,
             found > 0 ? "text-green-400" : "text-yellow-400",
+          );
+        }
+      }
+
+      // ── Manual (non-auto) missing poster workflow for the GitHub Viewer box.
+      // Scans the loaded playlist for entries without tvg-logo and shows them
+      // in a list where the user can either paste their own logo URL, or type
+      // an exact IMDB Content ID to fetch the poster from OMDb. ──────────────
+      let viewerMissingTargets = []; // { lineIndex, title, logo }
+
+      function showManualMissingPosters() {
+        const box = document.getElementById("viewerContentBox");
+        const content = box ? box.value : "";
+        if (!content || !content.trim()) {
+          showViewerStatus(
+            "⚠️ আগে GitHub থেকে কোনো M3U file load করো!",
+            "text-yellow-400",
+          );
+          return;
+        }
+
+        const lines = content.split(/\r?\n/);
+        viewerMissingTargets = [];
+        for (let i = 0; i < lines.length; i++) {
+          const trimmed = lines[i].trim();
+          if (!trimmed.startsWith("#EXTINF:")) continue;
+          const logoMatch = trimmed.match(/tvg-logo="([^"]*)"/i);
+          const hasLogo = logoMatch && logoMatch[1].trim() !== "";
+          if (hasLogo) continue;
+          const commaIndex = trimmed.lastIndexOf(",");
+          const title =
+            commaIndex !== -1 ? trimmed.substring(commaIndex + 1).trim() : "";
+          if (!title) continue;
+          viewerMissingTargets.push({ lineIndex: i, title, logo: "" });
+        }
+
+        renderViewerMissingList();
+
+        const sectionEl = document.getElementById("viewerManualPosterSection");
+        if (sectionEl) sectionEl.classList.remove("hidden");
+
+        if (viewerMissingTargets.length === 0) {
+          showViewerStatus(
+            "✅ এই ফাইলের সব entry-তে আগে থেকেই poster (tvg-logo) আছে!",
+            "text-green-400",
+          );
+        } else {
+          showViewerStatus(
+            `🔎 ${viewerMissingTargets.length} টি entry-তে poster নেই। নিচের লিস্ট থেকে একটা একটা করে poster দাও।`,
+            "text-amber-400",
+          );
+        }
+      }
+
+      function renderViewerMissingList() {
+        const countEl = document.getElementById("viewerMissingCount");
+        if (countEl) countEl.textContent = String(viewerMissingTargets.length);
+
+        const listEl = document.getElementById("viewerMissingList");
+        if (!listEl) return;
+        listEl.innerHTML = "";
+
+        viewerMissingTargets.forEach((target, idx) => {
+          const div = document.createElement("div");
+          div.className =
+            "flex justify-between items-center bg-gray-700 px-3 py-1.5 rounded-md text-sm gap-3";
+          div.id = `viewerMissRow_${idx}`;
+
+          const logoImg = target.logo
+            ? `<img src="${target.logo}" class="w-8 h-11 object-cover rounded border border-gray-600 flex-shrink-0" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'w-8 h-11 flex items-center justify-center bg-gray-800 text-xs rounded border border-red-700 flex-shrink-0', textContent:'❌'}))" />`
+            : `<div class="w-8 h-11 flex items-center justify-center bg-gray-800 text-xs rounded border border-gray-600 flex-shrink-0">—</div>`;
+
+          div.innerHTML = `
+                    ${logoImg}
+                    <span class="truncate font-medium max-w-xs flex-grow" title="${target.title}">${target.title}</span>
+                    <span id="viewerMissStatus_${idx}" class="text-xs text-gray-400 whitespace-nowrap">${target.logo ? "✅ logo বসেছে" : "— logo নেই"}</span>
+                    <button onclick="editViewerMissingLogoManually(${idx})" title="Logo লিংক নিজে দাও" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">✏️</button>
+                    <button onclick="setViewerMissingLogoByImdbId(${idx})" title="IMDB Content ID দিয়ে poster আনো (যেমন: tt0800369)" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">🎬</button>
+                `;
+          listEl.appendChild(div);
+        });
+      }
+
+      // Writes the chosen logo URL into the actual #EXTINF line inside the
+      // viewer textarea, and updates this row's status/thumbnail.
+      function applyViewerMissingLogo(idx, logoUrl) {
+        const target = viewerMissingTargets[idx];
+        if (!target) return;
+        const box = document.getElementById("viewerContentBox");
+        if (!box) return;
+
+        const lines = box.value.split(/\r?\n/);
+        lines[target.lineIndex] = setTvgLogoOnLine(
+          lines[target.lineIndex],
+          logoUrl,
+        );
+        box.value = lines.join("\n");
+
+        target.logo = logoUrl;
+        renderViewerMissingList();
+      }
+
+      // Option 1: "নিজে logo দাও" — user pastes/types their own poster URL.
+      function editViewerMissingLogoManually(idx) {
+        const target = viewerMissingTargets[idx];
+        if (!target) return;
+        const val = prompt(
+          `"${target.title}" এর জন্য tvg-logo (poster) URL দাও:`,
+          target.logo || "",
+        );
+        if (val === null) return;
+        const trimmed = val.trim();
+        if (!trimmed) return;
+        applyViewerMissingLogo(idx, trimmed);
+      }
+
+      // Option 2: "IMDB/Content ID দাও" — user types an exact IMDB ID
+      // (ttXXXXXXX), fetched directly from OMDb by ID for an exact match.
+      async function setViewerMissingLogoByImdbId(idx) {
+        const target = viewerMissingTargets[idx];
+        if (!target) return;
+
+        const raw = prompt(
+          `"${target.title}" এর জন্য IMDB Content ID দাও (যেমন: tt0800369):`,
+          "",
+        );
+        if (raw === null) return;
+
+        const match = raw.trim().match(/tt\d{6,9}/i);
+        const imdbId = match ? match[0].toLowerCase() : "";
+        if (!imdbId) {
+          alert(
+            "সঠিক IMDB ID দাওনি। ফরম্যাট হবে: tt0800369 (অথবা পুরো imdb.com/title/... লিংক পেস্ট করলেও চলবে)",
+          );
+          return;
+        }
+
+        const apiKey = getOmdbApiKey();
+        if (!apiKey) {
+          alert("আগে উপরে OMDb API Key বসাও, তারপর এই ফিচার ব্যবহার করো।");
+          return;
+        }
+
+        const statusEl = document.getElementById(`viewerMissStatus_${idx}`);
+        if (statusEl) statusEl.textContent = "⏳ খোঁজা হচ্ছে...";
+
+        const posterUrl = await fetchOmdbById(imdbId);
+        if (posterUrl) {
+          applyViewerMissingLogo(idx, posterUrl);
+        } else {
+          if (statusEl) statusEl.textContent = "❌ পোস্টার পাওয়া যায়নি";
+          alert(
+            `এই IMDB ID (${imdbId}) দিয়ে OMDb-তে কোনো poster পাওয়া যায়নি। ID টা আবার চেক করো।`,
           );
         }
       }
