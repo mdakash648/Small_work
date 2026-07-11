@@ -9,7 +9,7 @@
     />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <!-- APP_VERSION: 2026-07-01-001 -->
+    <!-- APP_VERSION: 2026-07-12-001 -->
     <title>M3U Playlist Bulk Group Customizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Monaco Editor (VS Code এর মূল এডিটর) — শুধু Fullscreen Editor-এর জন্য -->
@@ -802,7 +802,7 @@
       // নতুন ভার্সন সার্ভারে আপলোড করার সময় <head> এর
       // <!-- APP_VERSION: ... --> কমেন্টের ভ্যালুটা বদলে দিলেই
       // ব্রাউজারে খোলা থাকা পুরনো পেজগুলো অটো নতুন ভার্সনের নোটিফিকেশন দেখাবে।
-      const CURRENT_APP_VERSION = "2026-07-01-001";
+      const CURRENT_APP_VERSION = "2026-07-12-001";
       const UPDATE_CHECK_INTERVAL_MS = 3 * 60 * 1000; // প্রতি ৩ মিনিটে চেক
 
       function hardReload() {
@@ -1693,7 +1693,7 @@
           if (fibwatchMatch) {
             displayTitle = `${fibwatchMatch[1]} [Fibwatch.Com]`;
           }
-          let extinf = `#EXTINF:-1 ${logoAttr}group-title="${globalGroup}" , ${displayTitle}`;
+          let extinf = `#EXTINF:1 ${logoAttr}group-title="${globalGroup}" , ${displayTitle}`;
           // Append EXTVLCOPT lines (referrer, user-agent, etc.) before the URL
           const vlcLines =
             movie.vlcOpts && movie.vlcOpts.length > 0
