@@ -11,673 +11,999 @@
     <meta http-equiv="Expires" content="0" />
     <!-- APP_VERSION: 2026-07-12-001 -->
     <title>M3U Playlist Bulk Group Customizer</title>
+
+    <!-- Fonts: Hind Siliguri (Bangla UI text) + Inter (Latin/UI) + JetBrains Mono (code/M3U content) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: [
+                "Hind Siliguri",
+                "Inter",
+                "ui-sans-serif",
+                "system-ui",
+                "sans-serif",
+              ],
+              mono: [
+                "JetBrains Mono",
+                "ui-monospace",
+                "SFMono-Regular",
+                "monospace",
+              ],
+            },
+            colors: {
+              // Neutral "ink" scale — recolors every bg-gray-*/text-gray-*/border-gray-*
+              // utility already used throughout the app (including JS-rendered rows).
+              gray: {
+                50: "#f6f7fb",
+                100: "#ecf0f8",
+                200: "#d6dbec",
+                300: "#aab2cf",
+                400: "#8891ac",
+                500: "#666f8c",
+                600: "#454e6b",
+                700: "#2b3149",
+                800: "#181c2c",
+                900: "#0e111c",
+                950: "#07080f",
+              },
+              // Brand violet — recolors every indigo-* utility (primary actions,
+              // links, focus rings, section badges).
+              indigo: {
+                100: "#ece7ff",
+                200: "#d7cdff",
+                300: "#b6a4ff",
+                400: "#9b81ff",
+                500: "#8360f5",
+                600: "#6c45e0",
+                700: "#5533bd",
+                800: "#402990",
+                900: "#2b1e63",
+              },
+              // Marquee gold — recolors amber-*/yellow-* utilities (Push to
+              // GitHub, Fetch Logos, warnings) so they read as one accent family.
+              amber: {
+                400: "#ffbe55",
+                500: "#f5a428",
+                600: "#df8c12",
+                700: "#b5710f",
+              },
+              yellow: {
+                300: "#ffe27a",
+                400: "#ffd23f",
+                500: "#f6c22c",
+                600: "#dea515",
+                700: "#b3860f",
+              },
+            },
+            boxShadow: {
+              glow: "0 0 0 1px rgba(131,96,245,0.15), 0 8px 30px -8px rgba(131,96,245,0.35)",
+            },
+          },
+        },
+      };
+    </script>
+
     <!-- Monaco Editor (VS Code এর মূল এডিটর) — শুধু Fullscreen Editor-এর জন্য -->
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.49.0/min/vs/loader.js"></script>
+
+    <style>
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #402990 #181c2c;
+      }
+      ::-webkit-scrollbar {
+        width: 9px;
+        height: 9px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0e111c;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #35406a;
+        border-radius: 999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #4a5788;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background:
+          radial-gradient(
+            1100px 550px at 12% -8%,
+            rgba(131, 96, 245, 0.16),
+            transparent 60%
+          ),
+          radial-gradient(
+            900px 500px at 88% 0%,
+            rgba(245, 164, 40, 0.1),
+            transparent 55%
+          ),
+          #07080f;
+        background-attachment: fixed;
+      }
+
+      /* Reusable glass-panel look for every step card */
+      .glass-card {
+        background: linear-gradient(
+          180deg,
+          rgba(24, 28, 44, 0.92),
+          rgba(14, 17, 28, 0.92)
+        );
+        backdrop-filter: blur(10px);
+      }
+
+      .step-badge {
+        background: linear-gradient(
+          135deg,
+          rgba(131, 96, 245, 0.22),
+          rgba(245, 164, 40, 0.14)
+        );
+      }
+
+      .brand-gradient-text {
+        background: linear-gradient(90deg, #b6a4ff 0%, #f5a428 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .fade-up {
+        animation: fadeUp 0.5s ease both;
+      }
+
+      /* Fullscreen Monaco toolbar buttons */
+      .fs-tool-btn {
+        background: #181c2c;
+        color: #d6dbec;
+        padding: 0.32rem 0.65rem;
+        border: 1px solid #2b3149;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .fs-tool-btn:hover {
+        background: #2b3149;
+        border-color: #454e6b;
+      }
+      .fs-tool-btn.active {
+        background: #6c45e0;
+        border-color: #8360f5;
+        color: #fff;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .fade-up {
+          animation: none;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
   </head>
-  <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+  <body class="bg-gray-900 text-gray-100 min-h-screen font-sans antialiased">
     <!-- New version notification bar (hidden by default) -->
     <div
       id="updateNotifyBar"
-      class="hidden fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-gray-900 text-center py-2 px-4 font-semibold shadow-lg"
+      class="hidden fixed top-0 left-0 right-0 z-50 bg-amber-500 text-gray-900 text-center py-2.5 px-4 font-semibold shadow-lg text-sm sm:text-base"
     >
       🚀 নতুন ভার্সন পাওয়া গেছে!
       <button
         id="updateBtn"
-        class="ml-3 bg-gray-900 text-yellow-400 px-4 py-1 rounded hover:bg-gray-800"
+        class="ml-3 bg-gray-900 text-amber-400 px-4 py-1 rounded-lg hover:bg-gray-800 transition"
       >
         🔄 Update Content
       </button>
     </div>
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 class="text-3xl font-extrabold text-center mb-8 text-indigo-400">
-        🎬 M3U Bulk Group Customizer
-      </h1>
 
-      <div class="text-center mb-6">
+    <!-- Sticky top header -->
+    <header
+      class="sticky top-0 z-40 border-b border-gray-800 bg-gray-950/80 backdrop-blur-md"
+    >
+      <div
+        class="container mx-auto max-w-5xl px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3"
+      >
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span
+            class="w-9 h-9 rounded-xl step-badge border border-indigo-500/30 flex items-center justify-center text-lg flex-shrink-0"
+            >🎬</span
+          >
+          <div class="min-w-0">
+            <h1
+              class="text-sm sm:text-base font-extrabold tracking-tight brand-gradient-text truncate"
+            >
+              M3U Bulk Group Customizer
+            </h1>
+            <p class="text-[11px] text-gray-500 hidden sm:block">
+              Playlist mix, poster fetch ও GitHub publish — সব এক জায়গায়
+            </p>
+          </div>
+        </div>
         <button
           id="updateBtnManual"
-          class="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm px-4 py-1.5 rounded-lg border border-gray-600"
+          class="flex-shrink-0 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-lg border border-gray-700 transition font-medium"
         >
-          🔄 Update Content
+          🔄 <span class="hidden sm:inline">Update</span> Content
         </button>
       </div>
+    </header>
 
+    <div
+      class="container mx-auto px-4 sm:px-6 py-8 sm:py-10 max-w-5xl space-y-6"
+    >
       <!-- Step 1: Upload M3U Files -->
-      <div
-        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700"
-      >
-        <h2 class="text-xl font-bold mb-4 text-indigo-300">
-          ১. M3U ফাইল আপলোড করো
-        </h2>
-        <input
-          type="file"
-          id="m3uFiles"
-          multiple
-          accept=".m3u,.m3u8"
-          class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
-        />
-        <p class="text-xs text-gray-500 mt-2">
-          * একসাথে একাধিক সিঙ্গেল মুভির ফাইল সিলেক্ট করতে পারো।
-        </p>
-      </div>
+      <section class="fade-up">
+        <div
+          class="glass-card rounded-2xl border border-gray-800 shadow-xl shadow-black/30 overflow-hidden"
+        >
+          <div
+            class="h-1 bg-gradient-to-r from-indigo-500 via-fuchsia-400 to-amber-400"
+          ></div>
+          <div class="p-5 sm:p-7">
+            <div class="flex items-center gap-3 mb-5">
+              <span
+                class="w-10 h-10 rounded-xl step-badge border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold flex-shrink-0"
+                >১</span
+              >
+              <div>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-100">
+                  M3U ফাইল আপলোড করো
+                </h2>
+                <p class="text-xs text-gray-500">
+                  একসাথে একাধিক সিঙ্গেল মুভির ফাইল সিলেক্ট করতে পারো
+                </p>
+              </div>
+            </div>
+
+            <label
+              for="m3uFiles"
+              class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-700 hover:border-indigo-500/60 rounded-xl px-4 py-8 sm:py-10 text-center cursor-pointer transition bg-gray-900/40"
+            >
+              <span class="text-3xl">📤</span>
+              <span class="text-sm text-gray-300 font-medium"
+                >এখানে ক্লিক করে .m3u / .m3u8 ফাইল বেছে নাও</span
+              >
+              <span class="text-xs text-gray-500"
+                >Multiple ফাইল একসাথে সিলেক্ট করা যাবে</span
+              >
+              <input
+                type="file"
+                id="m3uFiles"
+                multiple
+                accept=".m3u,.m3u8"
+                class="hidden"
+              />
+            </label>
+          </div>
+        </div>
+      </section>
 
       <!-- Step 2: Bulk Customization & Preview -->
-      <div
-        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700 hidden"
-        id="customizerSection"
-      >
-        <h2 class="text-xl font-bold mb-4 text-indigo-300">২. গ্রুপ সেট করো</h2>
-
-        <!-- Bulk Group Input -->
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-2 text-gray-400"
-            >সব মুভির জন্য কমন গ্রুপের নাম দাও:</label
-          >
-          <!-- Existing groups from repo -->
-          <div class="flex flex-wrap gap-1 mb-2">
-            <select
-              id="groupDropdown"
-              onchange="onGroupDropdownChange()"
-              class="bg-gray-700 text-white px-3 py-2 rounded-md flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-            >
-              <option value="">— GitHub repo থেকে group select করো —</option>
-            </select>
-            <button
-              onclick="loadGroupsFromRepo()"
-              id="loadGroupsBtn"
-              class="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-semibold transition whitespace-nowrap"
-              title="Connected GitHub repo-র M3U file থেকে group titles load করো"
-            >
-              📂 Groups Load
-            </button>
-          </div>
-          <p id="groupLoadStatus" class="text-xs text-gray-500 mb-2 hidden"></p>
-          <!-- Custom / manual input -->
-          <div class="flex flex-wrap gap-1">
-            <input
-              type="text"
-              id="bulkGroupName"
-              placeholder="অথবা নিজে group লেখো: e.g., Action Movies, Trending"
-              class="bg-gray-700 text-white px-4 py-2 rounded-md flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <button
-              onclick="autoFillGroupName()"
-              title="Content নাম থেকে group-title অটো বানাও"
-              class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-medium transition whitespace-nowrap"
-            >
-              ✨ Auto Fill
-            </button>
-            <button
-              onclick="applyBulkGroup()"
-              class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md font-medium transition whitespace-nowrap"
-            >
-              গ্রুপ অ্যাপ্লাই করো
-            </button>
-          </div>
-        </div>
-
-        <!-- Movies List Preview -->
-        <div class="flex justify-between items-center mb-2">
-          <h3 class="text-lg font-semibold text-gray-300">
-            টোটাল মুভি লোড হয়েছে:
-            <span id="movieCount" class="text-indigo-400">0</span> টি
-          </h3>
-        </div>
+      <section class="hidden fade-up" id="customizerSection">
         <div
-          id="moviesList"
-          class="space-y-2 max-h-60 overflow-y-auto pr-2 border-t border-b border-gray-700 py-3 mb-6"
+          class="glass-card rounded-2xl border border-gray-800 shadow-xl shadow-black/30 overflow-hidden"
         >
-          <!-- Loaded movies preview list -->
-        </div>
-
-        <!-- IMDB Logo Auto-Fetch -->
-        <div class="mb-6 bg-gray-900/50 border border-gray-700 rounded-md p-4">
-          <div class="flex justify-between items-center flex-wrap gap-2 mb-2">
-            <h3 class="text-sm font-semibold text-gray-300">
-              🖼️ IMDB থেকে অটো tvg-logo (poster) আনো
-            </h3>
-            <div class="flex gap-2">
-              <button
-                onclick="fetchAllLogos()"
-                id="fetchLogosBtn"
-                class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-              >
-                🎬 Fetch All Logos
-              </button>
-              <button
-                onclick="fetchAllLogos(true)"
-                id="fetchMissingBtn"
-                class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-                title="শুধু যেগুলোর logo এখনো পাওয়া যায়নি সেগুলো আবার try করবে"
-              >
-                🔄 শুধু Missing গুলো
-              </button>
-            </div>
-          </div>
-          <div class="flex gap-2 items-center mb-2">
-            <input
-              type="text"
-              id="omdbApiKey"
-              placeholder="OMDb API key (fallback হিসেবে ব্যবহার হবে, না দিলে শুধু IMDB proxy দিয়ে try করবে)"
-              class="bg-gray-700 text-white px-3 py-1.5 rounded-md flex-grow focus:outline-none focus:ring-2 focus:ring-yellow-500 text-xs"
-              onchange="saveOmdbApiKey()"
-            />
-            <a
-              href="https://www.omdbapi.com/apikey.aspx"
-              target="_blank"
-              class="text-xs text-yellow-400 hover:underline whitespace-nowrap"
-              >ফ্রি key নাও</a
-            >
-          </div>
-          <p id="logoFetchStatus" class="text-xs text-gray-400"></p>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex flex-wrap gap-4">
-          <button
-            onclick="generateM3U()"
-            class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold transition"
-          >
-            Final M3U জেনারেট করো
-          </button>
-          <a
-            id="downloadBtn"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-bold transition hidden text-center cursor-pointer"
-            >📥 M3U ডাউনলোড করো</a
-          >
-        </div>
-      </div>
-
-      <!-- Step 3: M3U Preview / Copy / Edit -->
-      <div
-        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700 hidden"
-        id="previewSection"
-      >
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="text-xl font-bold text-indigo-300">
-            ৩. Final M3U Preview
-          </h2>
-          <div class="flex gap-2">
-            <button
-              onclick="toggleEdit()"
-              id="editToggleBtn"
-              class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-            >
-              ✏️ Edit
-            </button>
-            <button
-              onclick="copyM3U()"
-              id="copyBtn"
-              class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-            >
-              📋 Copy
-            </button>
-            <a
-              id="downloadBtn2"
-              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition text-center cursor-pointer"
-              >📥 Download</a
-            >
-          </div>
-        </div>
-        <textarea
-          id="m3uPreviewBox"
-          readonly
-          spellcheck="false"
-          class="w-full h-64 bg-gray-950 text-green-300 text-xs font-mono px-4 py-3 rounded-md border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-        ></textarea>
-        <div class="flex justify-between items-center mt-2">
-          <p id="copyStatus" class="text-xs text-green-400 font-medium hidden">
-            ✅ Copied to clipboard!
-          </p>
-          <button
-            onclick="applyEdits()"
-            id="applyEditBtn"
-            class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-1.5 rounded-md text-sm font-semibold transition hidden"
-          >
-            ✔ Apply Changes
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 4: GitHub File Viewer & Editor -->
-      <div
-        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700"
-        id="githubViewerSection"
-      >
-        <h2 class="text-xl font-bold mb-1 text-indigo-300">
-          ৪. GitHub থেকে Existing File দেখো ও Edit করো
-        </h2>
-        <p class="text-xs text-gray-500 mb-4">
-          * Token ও repo info একবার দিলে browser মনে রাখবে।
-        </p>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label class="block text-sm font-medium mb-1">GitHub PAT:</label>
-            <input
-              type="password"
-              id="viewerToken"
-              placeholder="ghp_xxxxxxxxxxxx"
-              class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1"
-              >GitHub Username:</label
-            >
-            <input
-              type="text"
-              id="viewerUser"
-              placeholder="username"
-              class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1"
-              >Repository Name:</label
-            >
-            <input
-              type="text"
-              id="viewerRepo"
-              placeholder="MovieM3u"
-              class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1"
-              >File Name
-              <span class="text-gray-500 font-normal"
-                >(ফাঁকা রাখলে সব file দেখাবে)</span
-              >:</label
-            >
-            <input
-              type="text"
-              id="viewerFileName"
-              placeholder="playlist.m3u — ফাঁকা রাখলে repo-র সব file list হবে"
-              class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
-
-        <div class="flex gap-3 mb-4 flex-wrap">
-          <button
-            onclick="fetchGitHubFile()"
-            class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
-          >
-            📥 File লোড করো
-          </button>
-          <button
-            onclick="
-              browserHistory = [];
-              listRepoFiles('');
-            "
-            class="bg-purple-700 hover:bg-purple-600 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
-          >
-            📂 Repo Files দেখো
-          </button>
-          <button
-            onclick="saveViewerConfig()"
-            class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
-          >
-            💾 Config Save করো
-          </button>
-          <button
-            onclick="clearViewerConfig()"
-            class="bg-red-800 hover:bg-red-700 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
-          >
-            🗑️ Config মুছো
-          </button>
-        </div>
-
-        <!-- Repo File Browser -->
-        <div
-          id="repoFileListArea"
-          class="hidden mb-4 bg-gray-900 rounded-lg border border-gray-700 overflow-hidden"
-        >
-          <!-- Browser header: breadcrumbs + back -->
           <div
-            class="flex items-center gap-2 px-3 py-2 bg-gray-800 border-b border-gray-700 flex-wrap"
-          >
-            <button
-              id="browserBackBtn"
-              onclick="browserGoBack()"
-              class="hidden bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white px-2.5 py-1 rounded text-xs font-semibold transition flex-shrink-0"
-            >
-              ← Back
-            </button>
-            <div
-              id="browserBreadcrumbs"
-              class="flex items-center gap-1 flex-wrap text-xs text-gray-400 min-w-0"
-            ></div>
-            <span
-              id="browserItemCount"
-              class="ml-auto text-xs text-gray-500 flex-shrink-0"
-            ></span>
-          </div>
-          <!-- File/folder list -->
-          <div
-            id="repoFileList"
-            class="divide-y divide-gray-800 max-h-72 overflow-y-auto"
+            class="h-1 bg-gradient-to-r from-indigo-500 via-fuchsia-400 to-amber-400"
           ></div>
-        </div>
-
-        <!-- File Content Editor -->
-        <div id="viewerEditorArea" class="hidden">
-          <div class="flex justify-between items-center mb-2">
-            <p class="text-sm text-gray-400">
-              📄
+          <div class="p-5 sm:p-7">
+            <div class="flex items-center gap-3 mb-5">
               <span
-                id="viewerFileLabel"
-                class="text-indigo-300 font-semibold"
-              ></span>
-              — <span id="viewerLineCount" class="text-gray-400"></span>
-            </p>
-            <div class="flex gap-2 flex-wrap justify-end">
-              <button
-                onclick="replaceViewerWithUpload()"
-                class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+                class="w-10 h-10 rounded-xl step-badge border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold flex-shrink-0"
+                >২</span
               >
-                📂 Upload দিয়ে Replace করো
-              </button>
-              <button
-                onclick="appendUploadToViewer()"
-                class="bg-green-700 hover:bg-green-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-              >
-                ➕ Upload Append করো
-              </button>
-              <button
-                onclick="pushViewerContent()"
-                class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-              >
-                🚀 GitHub-এ Save করো
-              </button>
-              <button
-                onclick="fetchMissingPostersInViewer()"
-                id="fetchViewerPostersBtn"
-                class="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-                title="যেসব entry-তে এখনো tvg-logo নেই, শুধু সেগুলোর জন্য IMDB থেকে poster খুঁজে এই box-এ বসিয়ে দেবে। তারপর 'GitHub-এ Save করো' চাপলে আপলোড হবে।"
-              >
-                🖼️ Missing Poster যোগ করো
-              </button>
-              <button
-                onclick="stopMissingPosterFetch()"
-                id="stopViewerPostersBtn"
-                class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition hidden"
-                title="Poster খোঁজার কাজ থামিয়ে দাও"
-              >
-                ⏹️ Stop
-              </button>
-              <button
-                onclick="showManualMissingPosters()"
-                id="showManualMissingPostersBtn"
-                class="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-                title="যেসব entry-তে poster নেই তাদের একটা লিস্ট দেখাবে, প্রতিটার জন্য নিজে logo দিতে পারবে অথবা IMDB Content ID দিয়ে poster আনতে পারবে।"
-              >
-                🧑‍💻 Missing Poster ম্যানুয়ালি যোগ করো
-              </button>
-              <button
-                onclick="openViewerFullscreen()"
-                class="bg-gray-600 hover:bg-gray-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
-                title="Fullscreen"
-              >
-                ⛶ Fullscreen
-              </button>
+              <div>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-100">
+                  গ্রুপ সেট করো
+                </h2>
+                <p class="text-xs text-gray-500">
+                  Common group বসাও, poster আনো — তারপর M3U বানাও
+                </p>
+              </div>
             </div>
-          </div>
 
-          <p class="text-xs text-gray-500 mb-2">
-            * "Missing Poster যোগ করো" চাপলে এই box-এ থাকা পুরনো playlist-এর
-            যেসব entry-তে poster নেই, শুধু সেগুলোর জন্য IMDB/OMDb থেকে খুঁজে
-            poster বসিয়ে দেবে — এরপর "GitHub-এ Save করো" চাপলে সেটা আপলোড হবে।
-            উপরে OMDb API key দিয়ে রাখলে result আরও ভালো হবে।
-          </p>
+            <!-- Bulk Group Input -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium mb-2 text-gray-400"
+                >সব মুভির জন্য কমন গ্রুপের নাম দাও:</label
+              >
+              <!-- Existing groups from repo -->
+              <div class="flex flex-wrap gap-2 mb-2">
+                <select
+                  id="groupDropdown"
+                  onchange="onGroupDropdownChange()"
+                  class="bg-gray-800 border border-gray-700 text-white px-3 py-2.5 rounded-lg flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm min-w-[180px]"
+                >
+                  <option value="">
+                    — GitHub repo থেকে group select করো —
+                  </option>
+                </select>
+                <button
+                  onclick="loadGroupsFromRepo()"
+                  id="loadGroupsBtn"
+                  class="bg-indigo-700 hover:bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition whitespace-nowrap shadow-glow"
+                  title="Connected GitHub repo-র M3U file থেকে group titles load করো"
+                >
+                  📂 Groups Load
+                </button>
+              </div>
+              <p
+                id="groupLoadStatus"
+                class="text-xs text-gray-500 mb-2 hidden"
+              ></p>
+              <!-- Custom / manual input -->
+              <div class="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  id="bulkGroupName"
+                  placeholder="অথবা নিজে group লেখো: e.g., Action Movies, Trending"
+                  class="bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm min-w-[200px]"
+                />
+                <button
+                  onclick="autoFillGroupName()"
+                  title="Content নাম থেকে group-title অটো বানাও"
+                  class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-lg font-medium transition whitespace-nowrap text-sm"
+                >
+                  ✨ Auto Fill
+                </button>
+                <button
+                  onclick="applyBulkGroup()"
+                  class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-semibold transition whitespace-nowrap text-sm"
+                >
+                  গ্রুপ অ্যাপ্লাই করো
+                </button>
+              </div>
+            </div>
 
-          <p class="text-xs text-amber-400 mb-2">
-            * ⏹️ "Stop" চাপলে যতটুকু poster পাওয়া গেছে তা এখন থেকে সবসময়
-            automatic ভাবে GitHub-এ Save/Upload হয়ে যাবে (checkbox-এর state যাই
-            থাকুক না কেন)।
-          </p>
-
-          <label
-            class="flex items-center gap-2 text-xs text-gray-400 mb-3 cursor-pointer select-none"
-            title="চালু থাকলে: পুরো fetch নিজে থেকে শেষ হয়ে গেলেও (Stop না চেপেই) GitHub-এ auto push হয়ে যাবে। Stop চাপলে এটা সবসময়ই auto-push করবে, checkbox লাগবে না।"
-          >
-            <input
-              type="checkbox"
-              id="autoPushAfterPosterFetch"
-              class="rounded bg-gray-700 border-gray-600"
-            />
-            ⚡ পুরো fetch নিজে থেকে শেষ হলেও (Stop না চেপে) tvg-logo গুলো
-            auto-matic GitHub-এ Save/Upload করো
-          </label>
-
-          <!-- Manual Missing Poster List -->
-          <div
-            id="viewerManualPosterSection"
-            class="hidden mb-4 bg-gray-900 rounded-lg border border-gray-700 p-3"
-          >
+            <!-- Movies List Preview -->
             <div class="flex justify-between items-center mb-2">
               <h3 class="text-sm font-semibold text-gray-300">
-                মিসিং পোস্টার পাওয়া গেছে:
-                <span id="viewerMissingCount" class="text-cyan-400">0</span>
+                টোটাল মুভি লোড হয়েছে:
+                <span
+                  id="movieCount"
+                  class="text-indigo-400 bg-indigo-900/40 px-2 py-0.5 rounded-md ml-1"
+                  >0</span
+                >
                 টি
               </h3>
-              <button
-                onclick="
-                  document
-                    .getElementById('viewerManualPosterSection')
-                    .classList.add('hidden')
-                "
-                class="text-gray-400 hover:text-white text-xs"
-                title="লিস্ট বন্ধ করো"
+            </div>
+            <div
+              id="moviesList"
+              class="space-y-2 max-h-60 overflow-y-auto pr-1 border-t border-b border-gray-800 py-3 mb-6"
+            >
+              <!-- Loaded movies preview list -->
+            </div>
+
+            <!-- IMDB Logo Auto-Fetch -->
+            <div
+              class="mb-6 bg-gray-900/60 border border-gray-800 rounded-xl p-4"
+            >
+              <div
+                class="flex justify-between items-center flex-wrap gap-2 mb-3"
               >
-                ✖ বন্ধ করো
+                <h3 class="text-sm font-semibold text-gray-300">
+                  🖼️ IMDB থেকে অটো tvg-logo (poster) আনো
+                </h3>
+                <div class="flex gap-2 flex-wrap">
+                  <button
+                    onclick="fetchAllLogos()"
+                    id="fetchLogosBtn"
+                    class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition"
+                  >
+                    🎬 Fetch All Logos
+                  </button>
+                  <button
+                    onclick="fetchAllLogos(true)"
+                    id="fetchMissingBtn"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition"
+                    title="শুধু যেগুলোর logo এখনো পাওয়া যায়নি সেগুলো আবার try করবে"
+                  >
+                    🔄 শুধু Missing গুলো
+                  </button>
+                </div>
+              </div>
+              <div
+                class="flex gap-2 items-center mb-2 flex-wrap sm:flex-nowrap"
+              >
+                <input
+                  type="text"
+                  id="omdbApiKey"
+                  placeholder="OMDb API key (fallback হিসেবে ব্যবহার হবে, না দিলে শুধু IMDB proxy দিয়ে try করবে)"
+                  class="bg-gray-800 border border-gray-700 text-white px-3 py-2 rounded-lg flex-grow focus:outline-none focus:ring-2 focus:ring-amber-500 text-xs min-w-[220px]"
+                  onchange="saveOmdbApiKey()"
+                />
+                <a
+                  href="https://www.omdbapi.com/apikey.aspx"
+                  target="_blank"
+                  class="text-xs text-amber-400 hover:underline whitespace-nowrap"
+                  >ফ্রি key নাও</a
+                >
+              </div>
+              <p id="logoFetchStatus" class="text-xs text-gray-400"></p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap gap-3">
+              <button
+                onclick="generateM3U()"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold transition shadow-glow"
+              >
+                Final M3U জেনারেট করো
+              </button>
+              <a
+                id="downloadBtn"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-bold transition hidden text-center cursor-pointer"
+                >📥 M3U ডাউনলোড করো</a
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- Step 3: M3U Preview / Copy / Edit -->
+      <section class="hidden fade-up" id="previewSection">
+        <div
+          class="glass-card rounded-2xl border border-gray-800 shadow-xl shadow-black/30 overflow-hidden"
+        >
+          <div
+            class="h-1 bg-gradient-to-r from-indigo-500 via-fuchsia-400 to-amber-400"
+          ></div>
+          <div class="p-5 sm:p-7">
+            <div class="flex justify-between items-center flex-wrap gap-3 mb-4">
+              <div class="flex items-center gap-3">
+                <span
+                  class="w-10 h-10 rounded-xl step-badge border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold flex-shrink-0"
+                  >৩</span
+                >
+                <h2 class="text-lg sm:text-xl font-bold text-gray-100">
+                  Final M3U Preview
+                </h2>
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <button
+                  onclick="toggleEdit()"
+                  id="editToggleBtn"
+                  class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  onclick="copyM3U()"
+                  id="copyBtn"
+                  class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition"
+                >
+                  📋 Copy
+                </button>
+                <a
+                  id="downloadBtn2"
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition text-center cursor-pointer"
+                  >📥 Download</a
+                >
+              </div>
+            </div>
+            <textarea
+              id="m3uPreviewBox"
+              readonly
+              spellcheck="false"
+              class="w-full h-64 bg-gray-950 text-green-300 text-xs font-mono px-4 py-3 rounded-lg border border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+            ></textarea>
+            <div class="flex justify-between items-center mt-2 flex-wrap gap-2">
+              <p
+                id="copyStatus"
+                class="text-xs text-green-400 font-medium hidden"
+              >
+                ✅ Copied to clipboard!
+              </p>
+              <button
+                onclick="applyEdits()"
+                id="applyEditBtn"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-1.5 rounded-lg text-sm font-semibold transition hidden ml-auto"
+              >
+                ✔ Apply Changes
               </button>
             </div>
-            <p class="text-xs text-gray-500 mb-2">
-              * প্রতিটা entry-এর পাশে ✏️ চাপলে নিজে poster URL দিতে পারবে, অথবা
-              🎬 চাপলে IMDB Content ID (যেমন: tt0800369) দিয়ে OMDb থেকে poster
-              আনতে পারবে। সব শেষে "🚀 GitHub-এ Save করো" চেপে save করো।
-            </p>
-            <div
-              id="viewerMissingList"
-              class="space-y-2 max-h-72 overflow-y-auto pr-2"
-            ></div>
-          </div>
-
-          <!-- Hidden file input for viewer upload -->
-          <input
-            type="file"
-            id="viewerUploadInput"
-            class="hidden"
-            onchange="handleViewerUpload(event)"
-          />
-
-          <textarea
-            id="viewerContentBox"
-            spellcheck="false"
-            class="w-full h-80 bg-gray-950 text-green-300 text-xs font-mono px-4 py-3 rounded-md border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-            placeholder="GitHub থেকে file লোড হলে এখানে দেখাবে..."
-          ></textarea>
-
-          <p
-            id="viewerStatus"
-            class="mt-2 text-sm font-medium text-center hidden"
-          ></p>
-        </div>
-      </div>
-
-      <!-- Step 5: GitHub Push Configuration -->
-      <div
-        class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6 border border-gray-700 hidden"
-        id="githubSection"
-      >
-        <h2 class="text-xl font-bold mb-4 text-indigo-300">
-          ৫. ডিরেক্ট GitHub-এ আপলোড করো
-        </h2>
-
-        <!-- Mode Toggle -->
-        <div class="flex gap-3 mb-5">
-          <button
-            onclick="switchMode('own')"
-            id="modeOwnBtn"
-            class="flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white"
-          >
-            👤 Own (Saved Config)
-          </button>
-          <button
-            onclick="switchMode('custom')"
-            id="modeCustomBtn"
-            class="flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300"
-          >
-            ✏️ Custom
-          </button>
-        </div>
-
-        <!-- Own Mode -->
-        <div id="ownModePanel">
-          <p class="text-xs text-gray-400 mb-3">
-            ⚡ তোমার saved credentials ব্যবহার হবে। একবার fill করলে browser মনে
-            রাখবে।
-          </p>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">GitHub PAT:</label>
-              <input
-                type="password"
-                id="ownToken"
-                placeholder="ghp_xxxxxxxxxxxx"
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1"
-                >GitHub Username:</label
-              >
-              <input
-                type="text"
-                id="ownUser"
-                placeholder="username"
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1"
-                >Repository Name:</label
-              >
-              <input
-                type="text"
-                id="ownRepo"
-                placeholder="MovieM3u"
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1"
-                >File Name (with extension):</label
-              >
-              <input
-                type="text"
-                id="ownFileName"
-                placeholder="playlist.m3u"
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-          <div class="flex gap-3 mt-4">
-            <button
-              onclick="saveOwnConfig()"
-              class="bg-gray-600 hover:bg-gray-500 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
-            >
-              💾 Config Save করো
-            </button>
-            <button
-              onclick="clearOwnConfig()"
-              class="bg-red-800 hover:bg-red-700 text-white px-5 py-2 rounded-md font-semibold text-sm transition"
-            >
-              🗑️ Config মুছো
-            </button>
           </div>
         </div>
+      </section>
 
-        <!-- Custom Mode -->
-        <div id="customModePanel" class="hidden">
-          <p class="text-xs text-gray-400 mb-3">
-            🔧 যেকোনো repo-তে push করো — কিছুই save হবে না।
-          </p>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">GitHub PAT:</label>
-              <input
-                type="password"
-                id="ghToken"
-                placeholder="ghp_xxxxxxxxxxxx"
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1"
-                >GitHub Username:</label
-              >
-              <input
-                type="text"
-                id="ghUser"
-                placeholder="username"
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1"
-                >Repository Name:</label
-              >
-              <input
-                type="text"
-                id="ghRepo"
-                placeholder="my-iptv-repo"
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-1"
-                >File Name (with extension):</label
-              >
-              <input
-                type="text"
-                id="ghFileName"
-                value="playlist.m3u"
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Push Mode: Replace or Append -->
-        <div class="mt-5 flex gap-3">
-          <button
-            onclick="setPushMode('replace')"
-            id="pushReplaceBtn"
-            class="flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300"
-          >
-            🔄 Replace (পুরো ফাইল বদলাও)
-          </button>
-          <button
-            onclick="setPushMode('append')"
-            id="pushAppendBtn"
-            class="flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-green-500 bg-green-700 text-white"
-          >
-            ➕ Append (শেষে যোগ করো)
-          </button>
-        </div>
-
-        <button
-          onclick="pushToGitHub()"
-          class="mt-5 w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-md font-bold text-lg transition"
+      <!-- Step 4: GitHub File Viewer & Editor -->
+      <section class="fade-up" id="githubViewerSection">
+        <div
+          class="glass-card rounded-2xl border border-gray-800 shadow-xl shadow-black/30 overflow-hidden"
         >
-          🚀 Push to GitHub
-        </button>
-        <p id="statusMsg" class="mt-3 text-center font-medium text-sm"></p>
-      </div>
+          <div
+            class="h-1 bg-gradient-to-r from-indigo-500 via-fuchsia-400 to-amber-400"
+          ></div>
+          <div class="p-5 sm:p-7">
+            <div class="flex items-center gap-3 mb-1">
+              <span
+                class="w-10 h-10 rounded-xl step-badge border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold flex-shrink-0"
+                >৪</span
+              >
+              <h2 class="text-lg sm:text-xl font-bold text-gray-100">
+                GitHub থেকে Existing File দেখো ও Edit করো
+              </h2>
+            </div>
+            <p class="text-xs text-gray-500 mb-5 pl-[52px]">
+              * Token ও repo info একবার দিলে browser মনে রাখবে।
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium mb-1 text-gray-400"
+                  >GitHub PAT:</label
+                >
+                <input
+                  type="password"
+                  id="viewerToken"
+                  placeholder="ghp_xxxxxxxxxxxx"
+                  class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1 text-gray-400"
+                  >GitHub Username:</label
+                >
+                <input
+                  type="text"
+                  id="viewerUser"
+                  placeholder="username"
+                  class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1 text-gray-400"
+                  >Repository Name:</label
+                >
+                <input
+                  type="text"
+                  id="viewerRepo"
+                  placeholder="MovieM3u"
+                  class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1 text-gray-400"
+                  >File Name
+                  <span class="text-gray-600 font-normal"
+                    >(ফাঁকা রাখলে সব file দেখাবে)</span
+                  >:</label
+                >
+                <input
+                  type="text"
+                  id="viewerFileName"
+                  placeholder="playlist.m3u — ফাঁকা রাখলে repo-র সব file list হবে"
+                  class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+            </div>
+
+            <div class="flex gap-2 sm:gap-3 mb-4 flex-wrap">
+              <button
+                onclick="fetchGitHubFile()"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-5 py-2 rounded-lg font-semibold text-sm transition"
+              >
+                📥 File লোড করো
+              </button>
+              <button
+                onclick="
+                  browserHistory = [];
+                  listRepoFiles('');
+                "
+                class="bg-violet-700 hover:bg-violet-600 text-white px-4 sm:px-5 py-2 rounded-lg font-semibold text-sm transition"
+              >
+                📂 Repo Files দেখো
+              </button>
+              <button
+                onclick="saveViewerConfig()"
+                class="bg-gray-700 hover:bg-gray-600 text-white px-4 sm:px-5 py-2 rounded-lg font-semibold text-sm transition"
+              >
+                💾 Config Save করো
+              </button>
+              <button
+                onclick="clearViewerConfig()"
+                class="bg-red-800 hover:bg-red-700 text-white px-4 sm:px-5 py-2 rounded-lg font-semibold text-sm transition"
+              >
+                🗑️ Config মুছো
+              </button>
+            </div>
+
+            <!-- Repo File Browser -->
+            <div
+              id="repoFileListArea"
+              class="hidden mb-4 bg-gray-900/70 rounded-xl border border-gray-800 overflow-hidden"
+            >
+              <!-- Browser header: breadcrumbs + back -->
+              <div
+                class="flex items-center gap-2 px-3 py-2.5 bg-gray-800/70 border-b border-gray-800 flex-wrap"
+              >
+                <button
+                  id="browserBackBtn"
+                  onclick="browserGoBack()"
+                  class="hidden bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white px-2.5 py-1 rounded-md text-xs font-semibold transition flex-shrink-0"
+                >
+                  ← Back
+                </button>
+                <div
+                  id="browserBreadcrumbs"
+                  class="flex items-center gap-1 flex-wrap text-xs text-gray-400 min-w-0"
+                ></div>
+                <span
+                  id="browserItemCount"
+                  class="ml-auto text-xs text-gray-500 flex-shrink-0"
+                ></span>
+              </div>
+              <!-- File/folder list -->
+              <div
+                id="repoFileList"
+                class="divide-y divide-gray-800 max-h-72 overflow-y-auto"
+              ></div>
+            </div>
+
+            <!-- File Content Editor -->
+            <div id="viewerEditorArea" class="hidden">
+              <div
+                class="flex justify-between items-center mb-2 flex-wrap gap-2"
+              >
+                <p class="text-sm text-gray-400">
+                  📄
+                  <span
+                    id="viewerFileLabel"
+                    class="text-indigo-300 font-semibold"
+                  ></span>
+                  — <span id="viewerLineCount" class="text-gray-400"></span>
+                </p>
+                <div class="flex gap-2 flex-wrap justify-end">
+                  <button
+                    onclick="replaceViewerWithUpload()"
+                    class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
+                  >
+                    📂 Upload দিয়ে Replace করো
+                  </button>
+                  <button
+                    onclick="appendUploadToViewer()"
+                    class="bg-green-700 hover:bg-green-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
+                  >
+                    ➕ Upload Append করো
+                  </button>
+                  <button
+                    onclick="pushViewerContent()"
+                    class="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
+                  >
+                    🚀 GitHub-এ Save করো
+                  </button>
+                  <button
+                    onclick="fetchMissingPostersInViewer()"
+                    id="fetchViewerPostersBtn"
+                    class="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
+                    title="যেসব entry-তে এখনো tvg-logo নেই, শুধু সেগুলোর জন্য IMDB থেকে poster খুঁজে এই box-এ বসিয়ে দেবে। তারপর 'GitHub-এ Save করো' চাপলে আপলোড হবে।"
+                  >
+                    🖼️ Missing Poster যোগ করো
+                  </button>
+                  <button
+                    onclick="stopMissingPosterFetch()"
+                    id="stopViewerPostersBtn"
+                    class="bg-red-700 hover:bg-red-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition hidden"
+                    title="Poster খোঁজার কাজ থামিয়ে দাও"
+                  >
+                    ⏹️ Stop
+                  </button>
+                  <button
+                    onclick="showManualMissingPosters()"
+                    id="showManualMissingPostersBtn"
+                    class="bg-cyan-700 hover:bg-cyan-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
+                    title="যেসব entry-তে poster নেই তাদের একটা লিস্ট দেখাবে, প্রতিটার জন্য নিজে logo দিতে পারবে অথবা IMDB Content ID দিয়ে poster আনতে পারবে।"
+                  >
+                    🧑‍💻 Missing Poster ম্যানুয়ালি যোগ করো
+                  </button>
+                  <button
+                    onclick="openViewerFullscreen()"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
+                    title="Fullscreen"
+                  >
+                    ⛶ Fullscreen
+                  </button>
+                </div>
+              </div>
+
+              <p class="text-xs text-gray-500 mb-2">
+                * "Missing Poster যোগ করো" চাপলে এই box-এ থাকা পুরনো playlist-এর
+                যেসব entry-তে poster নেই, শুধু সেগুলোর জন্য IMDB/OMDb থেকে খুঁজে
+                poster বসিয়ে দেবে — এরপর "GitHub-এ Save করো" চাপলে সেটা আপলোড
+                হবে। উপরে OMDb API key দিয়ে রাখলে result আরও ভালো হবে।
+              </p>
+
+              <p class="text-xs text-amber-400 mb-2">
+                * ⏹️ "Stop" চাপলে যতটুকু poster পাওয়া গেছে তা এখন থেকে সবসময়
+                automatic ভাবে GitHub-এ Save/Upload হয়ে যাবে (checkbox-এর state
+                যাই থাকুক না কেন)।
+              </p>
+
+              <label
+                class="flex items-center gap-2 text-xs text-gray-400 mb-3 cursor-pointer select-none"
+                title="চালু থাকলে: পুরো fetch নিজে থেকে শেষ হয়ে গেলেও (Stop না চেপেই) GitHub-এ auto push হয়ে যাবে। Stop চাপলে এটা সবসময়ই auto-push করবে, checkbox লাগবে না।"
+              >
+                <input
+                  type="checkbox"
+                  id="autoPushAfterPosterFetch"
+                  class="rounded bg-gray-800 border-gray-600"
+                />
+                ⚡ পুরো fetch নিজে থেকে শেষ হলেও (Stop না চেপে) tvg-logo গুলো
+                auto-matic GitHub-এ Save/Upload করো
+              </label>
+
+              <!-- Manual Missing Poster List -->
+              <div
+                id="viewerManualPosterSection"
+                class="hidden mb-4 bg-gray-900/70 rounded-xl border border-gray-800 p-3"
+              >
+                <div class="flex justify-between items-center mb-2">
+                  <h3 class="text-sm font-semibold text-gray-300">
+                    মিসিং পোস্টার পাওয়া গেছে:
+                    <span id="viewerMissingCount" class="text-cyan-400">0</span>
+                    টি
+                  </h3>
+                  <button
+                    onclick="
+                      document
+                        .getElementById('viewerManualPosterSection')
+                        .classList.add('hidden')
+                    "
+                    class="text-gray-400 hover:text-white text-xs"
+                    title="লিস্ট বন্ধ করো"
+                  >
+                    ✖ বন্ধ করো
+                  </button>
+                </div>
+                <p class="text-xs text-gray-500 mb-2">
+                  * প্রতিটা entry-এর পাশে ✏️ চাপলে নিজে poster URL দিতে পারবে,
+                  অথবা 🎬 চাপলে IMDB Content ID (যেমন: tt0800369) দিয়ে OMDb
+                  থেকে poster আনতে পারবে। সব শেষে "🚀 GitHub-এ Save করো" চেপে
+                  save করো।
+                </p>
+                <div
+                  id="viewerMissingList"
+                  class="space-y-2 max-h-72 overflow-y-auto pr-2"
+                ></div>
+              </div>
+
+              <!-- Hidden file input for viewer upload -->
+              <input
+                type="file"
+                id="viewerUploadInput"
+                class="hidden"
+                onchange="handleViewerUpload(event)"
+              />
+
+              <textarea
+                id="viewerContentBox"
+                spellcheck="false"
+                class="w-full h-80 bg-gray-950 text-green-300 text-xs font-mono px-4 py-3 rounded-lg border border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                placeholder="GitHub থেকে file লোড হলে এখানে দেখাবে..."
+              ></textarea>
+
+              <p
+                id="viewerStatus"
+                class="mt-2 text-sm font-medium text-center hidden"
+              ></p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- Step 5: GitHub Push Configuration -->
+      <section class="hidden fade-up" id="githubSection">
+        <div
+          class="glass-card rounded-2xl border border-gray-800 shadow-xl shadow-black/30 overflow-hidden"
+        >
+          <div
+            class="h-1 bg-gradient-to-r from-indigo-500 via-fuchsia-400 to-amber-400"
+          ></div>
+          <div class="p-5 sm:p-7">
+            <div class="flex items-center gap-3 mb-5">
+              <span
+                class="w-10 h-10 rounded-xl step-badge border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold flex-shrink-0"
+                >৫</span
+              >
+              <h2 class="text-lg sm:text-xl font-bold text-gray-100">
+                ডিরেক্ট GitHub-এ আপলোড করো
+              </h2>
+            </div>
+
+            <!-- Mode Toggle -->
+            <div class="flex gap-3 mb-5">
+              <button
+                onclick="switchMode('own')"
+                id="modeOwnBtn"
+                class="flex-1 py-2.5 rounded-lg font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white"
+              >
+                👤 Own (Saved Config)
+              </button>
+              <button
+                onclick="switchMode('custom')"
+                id="modeCustomBtn"
+                class="flex-1 py-2.5 rounded-lg font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300"
+              >
+                ✏️ Custom
+              </button>
+            </div>
+
+            <!-- Own Mode -->
+            <div id="ownModePanel">
+              <p class="text-xs text-gray-400 mb-3">
+                ⚡ তোমার saved credentials ব্যবহার হবে। একবার fill করলে browser
+                মনে রাখবে।
+              </p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-400"
+                    >GitHub PAT:</label
+                  >
+                  <input
+                    type="password"
+                    id="ownToken"
+                    placeholder="ghp_xxxxxxxxxxxx"
+                    class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-400"
+                    >GitHub Username:</label
+                  >
+                  <input
+                    type="text"
+                    id="ownUser"
+                    placeholder="username"
+                    class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-400"
+                    >Repository Name:</label
+                  >
+                  <input
+                    type="text"
+                    id="ownRepo"
+                    placeholder="MovieM3u"
+                    class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-400"
+                    >File Name (with extension):</label
+                  >
+                  <input
+                    type="text"
+                    id="ownFileName"
+                    placeholder="playlist.m3u"
+                    class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+              </div>
+              <div class="flex gap-3 mt-4 flex-wrap">
+                <button
+                  onclick="saveOwnConfig()"
+                  class="bg-gray-700 hover:bg-gray-600 text-white px-5 py-2 rounded-lg font-semibold text-sm transition"
+                >
+                  💾 Config Save করো
+                </button>
+                <button
+                  onclick="clearOwnConfig()"
+                  class="bg-red-800 hover:bg-red-700 text-white px-5 py-2 rounded-lg font-semibold text-sm transition"
+                >
+                  🗑️ Config মুছো
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Mode -->
+            <div id="customModePanel" class="hidden">
+              <p class="text-xs text-gray-400 mb-3">
+                🔧 যেকোনো repo-তে push করো — কিছুই save হবে না।
+              </p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-400"
+                    >GitHub PAT:</label
+                  >
+                  <input
+                    type="password"
+                    id="ghToken"
+                    placeholder="ghp_xxxxxxxxxxxx"
+                    class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-400"
+                    >GitHub Username:</label
+                  >
+                  <input
+                    type="text"
+                    id="ghUser"
+                    placeholder="username"
+                    class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-400"
+                    >Repository Name:</label
+                  >
+                  <input
+                    type="text"
+                    id="ghRepo"
+                    placeholder="my-iptv-repo"
+                    class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1 text-gray-400"
+                    >File Name (with extension):</label
+                  >
+                  <input
+                    type="text"
+                    id="ghFileName"
+                    value="playlist.m3u"
+                    class="w-full bg-gray-800 border border-gray-700 text-white px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Push Mode: Replace or Append -->
+            <div class="mt-5 flex gap-3">
+              <button
+                onclick="setPushMode('replace')"
+                id="pushReplaceBtn"
+                class="flex-1 py-2.5 rounded-lg font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300"
+              >
+                🔄 Replace (পুরো ফাইল বদলাও)
+              </button>
+              <button
+                onclick="setPushMode('append')"
+                id="pushAppendBtn"
+                class="flex-1 py-2.5 rounded-lg font-semibold text-sm transition border-2 border-green-500 bg-green-700 text-white"
+              >
+                ➕ Append (শেষে যোগ করো)
+              </button>
+            </div>
+
+            <button
+              onclick="pushToGitHub()"
+              class="mt-5 w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-gray-950 py-3 rounded-lg font-extrabold text-base sm:text-lg transition shadow-glow"
+            >
+              🚀 Push to GitHub
+            </button>
+            <p id="statusMsg" class="mt-3 text-center font-medium text-sm"></p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="text-center text-xs text-gray-600 pt-2 pb-6">
+        M3U Bulk Group Customizer · সব প্রসেসিং তোমার ব্রাউজারেই হয়
+      </footer>
     </div>
 
     <!-- Fullscreen Editor Overlay (Monaco / VS Code Editor) -->
@@ -686,23 +1012,23 @@
       class="hidden fixed inset-0 z-50 bg-gray-950 flex flex-col"
     >
       <div
-        class="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 flex-shrink-0 flex-wrap gap-2"
+        class="flex items-center justify-between px-4 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0 flex-wrap gap-2"
       >
         <p class="text-sm text-gray-300">
           📄
-          <span id="fsFileLabel" class="text-indigo-300 font-semibold"></span> —
-          <span id="fsLineCount" class="text-gray-400"></span>
+          <span id="fsFileLabel" class="text-indigo-300 font-semibold"></span>
+          — <span id="fsLineCount" class="text-gray-400"></span>
         </p>
         <div class="flex gap-2">
           <button
             onclick="pushFromFullscreen()"
-            class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+            class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition"
           >
             🚀 GitHub-এ Save করো
           </button>
           <button
             onclick="closeViewerFullscreen()"
-            class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition"
+            class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition"
           >
             ✕ Exit Fullscreen
           </button>
@@ -711,7 +1037,7 @@
 
       <!-- Monaco Toolbar -->
       <div
-        class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800/70 border-b border-gray-700 flex-shrink-0 flex-wrap text-xs"
+        class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900/80 border-b border-gray-800 flex-shrink-0 flex-wrap text-xs"
       >
         <button
           onclick="fsScrollTop()"
@@ -727,7 +1053,7 @@
         >
           ⤓ Bottom
         </button>
-        <span class="w-px h-5 bg-gray-600 mx-1"></span>
+        <span class="w-px h-5 bg-gray-700 mx-1"></span>
         <button onclick="fsFind()" title="Find (Ctrl+F)" class="fs-tool-btn">
           🔍 Find
         </button>
@@ -738,14 +1064,14 @@
         >
           🔁 Replace
         </button>
-        <span class="w-px h-5 bg-gray-600 mx-1"></span>
+        <span class="w-px h-5 bg-gray-700 mx-1"></span>
         <button onclick="fsUndo()" title="Undo (Ctrl+Z)" class="fs-tool-btn">
           ↺ Undo
         </button>
         <button onclick="fsRedo()" title="Redo (Ctrl+Y)" class="fs-tool-btn">
           ↻ Redo
         </button>
-        <span class="w-px h-5 bg-gray-600 mx-1"></span>
+        <span class="w-px h-5 bg-gray-700 mx-1"></span>
         <button
           id="fsWordWrapBtn"
           onclick="fsToggleWordWrap()"
@@ -791,25 +1117,6 @@
         class="hidden px-4 py-2 text-sm font-medium text-center bg-gray-900 flex-shrink-0"
       ></p>
     </div>
-
-    <style>
-      .fs-tool-btn {
-        background: #374151;
-        color: #e5e7eb;
-        padding: 0.3rem 0.6rem;
-        border-radius: 0.375rem;
-        font-weight: 600;
-        transition: background 0.15s;
-        white-space: nowrap;
-      }
-      .fs-tool-btn:hover {
-        background: #4b5563;
-      }
-      .fs-tool-btn.active {
-        background: #4f46e5;
-        color: #fff;
-      }
-    </style>
 
     <script>
       let movies = [];
@@ -945,7 +1252,7 @@
         movies.forEach((movie, idx) => {
           const div = document.createElement("div");
           div.className =
-            "flex justify-between items-center bg-gray-700 px-3 py-1.5 rounded-md text-sm gap-3";
+            "flex justify-between items-center bg-gray-700 px-3 py-1.5 rounded-lg text-sm gap-3";
           div.id = `movieRow_${idx}`;
 
           const logoImg = movie.logo
@@ -1793,7 +2100,7 @@
         viewerMissingTargets.forEach((target, idx) => {
           const div = document.createElement("div");
           div.className =
-            "flex justify-between items-center bg-gray-700 px-3 py-1.5 rounded-md text-sm gap-3";
+            "flex justify-between items-center bg-gray-700 px-3 py-1.5 rounded-lg text-sm gap-3";
           div.id = `viewerMissRow_${idx}`;
 
           const logoImg = target.logo
@@ -2039,16 +2346,16 @@
           ownPanel.classList.remove("hidden");
           customPanel.classList.add("hidden");
           ownBtn.className =
-            "flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white";
+            "flex-1 py-2 rounded-lg font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white";
           customBtn.className =
-            "flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
+            "flex-1 py-2 rounded-lg font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
         } else {
           ownPanel.classList.add("hidden");
           customPanel.classList.remove("hidden");
           customBtn.className =
-            "flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white";
+            "flex-1 py-2 rounded-lg font-bold text-sm transition border-2 border-indigo-500 bg-indigo-600 text-white";
           ownBtn.className =
-            "flex-1 py-2 rounded-md font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
+            "flex-1 py-2 rounded-lg font-bold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
         }
       }
 
@@ -2058,14 +2365,14 @@
         const appendBtn = document.getElementById("pushAppendBtn");
         if (mode === "replace") {
           replaceBtn.className =
-            "flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-red-500 bg-red-700 text-white";
+            "flex-1 py-2 rounded-lg font-semibold text-sm transition border-2 border-red-500 bg-red-700 text-white";
           appendBtn.className =
-            "flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
+            "flex-1 py-2 rounded-lg font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
         } else {
           appendBtn.className =
-            "flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-green-500 bg-green-700 text-white";
+            "flex-1 py-2 rounded-lg font-semibold text-sm transition border-2 border-green-500 bg-green-700 text-white";
           replaceBtn.className =
-            "flex-1 py-2 rounded-md font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
+            "flex-1 py-2 rounded-lg font-semibold text-sm transition border-2 border-gray-600 bg-gray-700 text-gray-300";
         }
       }
 
