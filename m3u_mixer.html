@@ -433,6 +433,25 @@
             উপরে OMDb API key দিয়ে রাখলে result আরও ভালো হবে।
           </p>
 
+          <p class="text-xs text-amber-400 mb-2">
+            * ⏹️ "Stop" চাপলে যতটুকু poster পাওয়া গেছে তা এখন থেকে সবসময়
+            automatic ভাবে GitHub-এ Save/Upload হয়ে যাবে (checkbox-এর state যাই
+            থাকুক না কেন)।
+          </p>
+
+          <label
+            class="flex items-center gap-2 text-xs text-gray-400 mb-3 cursor-pointer select-none"
+            title="চালু থাকলে: পুরো fetch নিজে থেকে শেষ হয়ে গেলেও (Stop না চেপেই) GitHub-এ auto push হয়ে যাবে। Stop চাপলে এটা সবসময়ই auto-push করবে, checkbox লাগবে না।"
+          >
+            <input
+              type="checkbox"
+              id="autoPushAfterPosterFetch"
+              class="rounded bg-gray-700 border-gray-600"
+            />
+            ⚡ পুরো fetch নিজে থেকে শেষ হলেও (Stop না চেপে) tvg-logo গুলো
+            auto-matic GitHub-এ Save/Upload করো
+          </label>
+
           <!-- Manual Missing Poster List -->
           <div
             id="viewerManualPosterSection"
@@ -945,7 +964,9 @@
         });
       }
 
-      // ── Let user manually paste/correct a tvg-logo URL for one movie ──
+      // ── Let user manually paste/correct a tvg-logo URL for one movie.
+      // যদি movie-টা কোনো web series-এর episode হয়, তাহলে এই একই poster URL
+      // সেই সিরিজের বাকি সব episode-এও auto বসে যাবে। ──
       function editLogoManually(idx) {
         const movie = movies[idx];
         if (!movie) return;
@@ -954,7 +975,14 @@
           movie.logo || "",
         );
         if (val === null) return;
-        movie.logo = val.trim();
+        const trimmedVal = val.trim();
+
+        const { key } = getSeriesGroupKey(movie.title);
+        const groups = groupMoviesBySeries();
+        const groupIdxs = groups[key] || [idx];
+        groupIdxs.forEach((i) => {
+          movies[i].logo = trimmedVal;
+        });
         applyBulkGroup();
       }
 
@@ -991,7 +1019,13 @@
 
         const posterUrl = await fetchOmdbById(imdbId);
         if (posterUrl) {
-          movie.logo = posterUrl;
+          // web series হলে একই poster এই সিরিজের সব episode-এ বসে যাবে
+          const { key } = getSeriesGroupKey(movie.title);
+          const groups = groupMoviesBySeries();
+          const groupIdxs = groups[key] || [idx];
+          groupIdxs.forEach((i) => {
+            movies[i].logo = posterUrl;
+          });
           applyBulkGroup();
         } else {
           if (rowStatus) rowStatus.textContent = "❌ পোস্টার পাওয়া যায়নি";
@@ -1025,7 +1059,7 @@
 
         // 3. Cut off at season/episode marker, quality, or codec keywords
         const cutPatterns = [
-          /\bS\d{1,2}E\d{1,2}\b/i,
+          /\bS\d{1,2}E\d{1,3}\b/i,
           /\bS\d{1,2}\b/i,
           /\bE\d{2,3}\b/i,
           /\b\d{3,4}[pP]\b/,
@@ -1195,6 +1229,26 @@
         return { name: s || raw, year, isSeries };
       }
 
+      // Returns a normalized grouping key for a raw episode/movie title so that
+      // every episode of the same web series maps to the same key (and gets
+      // treated as ONE title for poster search/apply purposes).
+      function getSeriesGroupKey(title) {
+        const { name, isSeries } = cleanTitleForImdbSearch(title);
+        const key = (name || title || "").trim().toLowerCase();
+        return { key, isSeries };
+      }
+
+      // Groups the `movies` array indices by series key so all episodes of the
+      // same web series can share one IMDB/OMDb poster lookup + tvg-logo value.
+      function groupMoviesBySeries() {
+        const groups = {};
+        movies.forEach((m, idx) => {
+          const { key } = getSeriesGroupKey(m.title);
+          (groups[key] = groups[key] || []).push(idx);
+        });
+        return groups;
+      }
+
       // Upscale IMDB's CDN thumbnail to a nicer poster-sized image
       function upgradeImdbImageUrl(url) {
         if (!url) return url;
@@ -1327,40 +1381,60 @@
         if (btn) btn.disabled = true;
         if (missBtn) missBtn.disabled = true;
 
-        const targets = movies
-          .map((m, idx) => idx)
-          .filter((idx) => !onlyMissing || !movies[idx].logo);
+        // Group episodes of the same web series together so we only search
+        // IMDB/OMDb ONCE per series and reuse that one poster for every episode.
+        const groups = groupMoviesBySeries();
+        const groupList = Object.values(groups).filter(
+          (idxs) => !onlyMissing || idxs.some((i) => !movies[i].logo),
+        );
 
         let done = 0;
-        for (const idx of targets) {
-          const movie = movies[idx];
+        for (const idxs of groupList) {
+          const movie = movies[idxs[0]];
+          const seriesTag =
+            idxs.length > 1 ? ` (সিরিজ, ${idxs.length} এপিসোড)` : "";
           if (statusEl) {
-            statusEl.textContent = `🔎 খোঁজা হচ্ছে (${done + 1}/${targets.length}): ${movie.title}`;
+            statusEl.textContent = `🔎 খোঁজা হচ্ছে (${done + 1}/${groupList.length}): ${movie.title}${seriesTag}`;
           }
-          const rowStatus = document.getElementById(`logoStatus_${idx}`);
-          if (rowStatus) rowStatus.textContent = "⏳ খোঁজা হচ্ছে...";
+          idxs.forEach((idx) => {
+            const rowStatus = document.getElementById(`logoStatus_${idx}`);
+            if (rowStatus) rowStatus.textContent = "⏳ খোঁজা হচ্ছে...";
+          });
 
           try {
             const logoUrl = await fetchImdbLogoForTitle(movie.title);
             if (logoUrl) {
-              movie.logo = logoUrl;
-            } else if (rowStatus) {
-              rowStatus.textContent = "❌ পাওয়া যায়নি";
+              // Same poster URL goes into EVERY episode of this series.
+              idxs.forEach((idx) => {
+                if (!onlyMissing || !movies[idx].logo) {
+                  movies[idx].logo = logoUrl;
+                }
+              });
+            } else {
+              idxs.forEach((idx) => {
+                const rowStatus = document.getElementById(`logoStatus_${idx}`);
+                if (rowStatus && !movies[idx].logo)
+                  rowStatus.textContent = "❌ পাওয়া যায়নি";
+              });
             }
           } catch (err) {
-            if (rowStatus) rowStatus.textContent = "❌ এরর";
+            idxs.forEach((idx) => {
+              const rowStatus = document.getElementById(`logoStatus_${idx}`);
+              if (rowStatus && !movies[idx].logo)
+                rowStatus.textContent = "❌ এরর";
+            });
           }
 
           done++;
-          // Re-render just this row's thumbnail/status without rebuilding the whole list
-          refreshMovieRow(idx);
+          // Re-render every episode row in this series
+          idxs.forEach((idx) => refreshMovieRow(idx));
 
           // Be gentle with the free CORS proxy / IMDB endpoint
           await sleep(400);
         }
 
         if (statusEl) {
-          statusEl.textContent = `✅ শেষ! ${done} টি মুভি প্রসেস হয়েছে। (${movies.filter((m) => m.logo).length}/${movies.length} টিতে logo পাওয়া গেছে)`;
+          statusEl.textContent = `✅ শেষ! ${movies.length} টি এন্ট্রি (${groupList.length} টি ইউনিক টাইটেল/সিরিজ) প্রসেস হয়েছে। (${movies.filter((m) => m.logo).length}/${movies.length} টিতে logo পাওয়া গেছে)`;
         }
         if (btn) btn.disabled = false;
         if (missBtn) missBtn.disabled = false;
@@ -1381,13 +1455,28 @@
       }
 
       // Insert/replace the tvg-logo attribute on a single #EXTINF line.
+      // NOTE: previously this used an anchored regex (^#EXTINF:...) which
+      // silently failed to insert the logo whenever the line had leading
+      // whitespace/indentation (common in many M3U exports) — the function
+      // would return the line UNCHANGED with no error, so the fetched logo
+      // looked "found" in the status message but never actually landed in
+      // the file. Removed the anchor so it matches #EXTINF: anywhere on the
+      // line, regardless of leading spaces/tabs.
       function setTvgLogoOnLine(line, logoUrl) {
         let newLine = line.replace(/\s*tvg-logo="[^"]*"/i, "");
         newLine = newLine.replace(
-          /^(#EXTINF:-?\d*)/,
+          /(#EXTINF:-?\d*)/,
           `$1 tvg-logo="${logoUrl}"`,
         );
         return newLine;
+      }
+
+      // Returns true only if the line genuinely contains a non-empty
+      // tvg-logo after the edit — used to verify insertion actually worked
+      // instead of blindly trusting the replace() call.
+      function lineHasTvgLogo(line) {
+        const m = line.match(/tvg-logo="([^"]*)"/i);
+        return !!(m && m[1].trim() !== "");
       }
 
       async function fetchMissingPostersInViewer() {
@@ -1437,40 +1526,63 @@
           stopBtn.classList.remove("hidden");
         }
 
+        // Group episodes of the same web series together so we only search
+        // IMDB/OMDb ONCE per series and reuse that one poster for every episode.
+        const seriesGroups = {};
+        targets.forEach((t, ti) => {
+          const { key } = getSeriesGroupKey(t.title);
+          (seriesGroups[key] = seriesGroups[key] || []).push(ti);
+        });
+        const groupList = Object.values(seriesGroups);
+
         const totalStr = String(targets.length);
         let found = 0;
         let processed = 0;
         let stopped = false;
-        for (let done = 0; done < targets.length; done++) {
+        for (let g = 0; g < groupList.length; g++) {
           if (viewerPosterFetchStopRequested) {
             stopped = true;
             break;
           }
 
-          const target = targets[done];
-          const doneStr = String(done + 1).padStart(2, "0");
+          const groupTis = groupList[g];
+          const repTarget = targets[groupTis[0]];
+          const seriesTag =
+            groupTis.length > 1 ? ` (সিরিজ, ${groupTis.length} এপিসোড)` : "";
           showViewerStatus(
-            `🔎 Poster খোঁজা হচ্ছে (${doneStr}/${totalStr}): ${target.title}`,
+            `🔎 Poster খোঁজা হচ্ছে (${processed + 1}-${processed + groupTis.length}/${totalStr}): ${repTarget.title}${seriesTag}`,
             "text-amber-400",
             false,
           );
 
           try {
-            const logoUrl = await fetchImdbLogoForTitle(target.title);
+            const logoUrl = await fetchImdbLogoForTitle(repTarget.title);
             if (logoUrl) {
-              lines[target.lineIndex] = setTvgLogoOnLine(
-                lines[target.lineIndex],
-                logoUrl,
-              );
-              found++;
-              // Reflect progress live in the textarea as it goes
+              // Same poster URL goes into EVERY episode line of this series.
+              groupTis.forEach((ti) => {
+                const target = targets[ti];
+                const updatedLine = setTvgLogoOnLine(
+                  lines[target.lineIndex],
+                  logoUrl,
+                );
+                // Only count/keep it if the tvg-logo actually landed in the
+                // line — guards against any edge-case line format the regex
+                // can't handle, instead of silently losing the fetch.
+                if (lineHasTvgLogo(updatedLine)) {
+                  lines[target.lineIndex] = updatedLine;
+                  found++;
+                }
+              });
+              // Reflect progress LIVE in the textarea immediately, so
+              // even if the user hits Stop right after this, the logo(s)
+              // found so far are already sitting in the box.
               box.value = lines.join("\n");
             }
           } catch (err) {
-            // skip this one, move on to the next
+            // skip this group, move on to the next
           }
 
-          processed++;
+          processed += groupTis.length;
 
           if (viewerPosterFetchStopRequested) {
             stopped = true;
@@ -1490,16 +1602,42 @@
           stopBtn.classList.add("hidden");
         }
 
+        // Stop চাপলে যা যা tvg-logo পাওয়া গেছে তা সবসময় auto GitHub-এ push হবে
+        // (checkbox-এর state নির্বিশেষে) — যাতে fetch হওয়া poster হারিয়ে না যায়।
+        // স্বাভাবিকভাবে শেষ হলে (Stop না চেপে) checkbox অনুযায়ী auto-push হবে।
+        const autoPushEl = document.getElementById("autoPushAfterPosterFetch");
+        const shouldAutoPush =
+          found > 0 && (stopped || (autoPushEl && autoPushEl.checked));
+
         if (stopped) {
           showViewerStatus(
-            `⏹️ থামানো হয়েছে! ${processed}/${targets.length} টি চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। "🚀 GitHub-এ Save করো" চেপে save করো।`,
+            `⏹️ থামানো হয়েছে! ${processed}/${targets.length} টি চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। ` +
+              (shouldAutoPush
+                ? "GitHub-এ auto-save হচ্ছে..."
+                : `"🚀 GitHub-এ Save করো" চেপে save করো।`),
             "text-yellow-400",
+            !shouldAutoPush,
           );
         } else {
           showViewerStatus(
-            `✅ শেষ! ${targets.length} টি missing entry চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। এখন "🚀 GitHub-এ Save করো" চেপে save করো।`,
+            `✅ শেষ! ${targets.length} টি missing entry চেক হয়েছে, ${found} টিতে নতুন poster যোগ হয়েছে। ` +
+              (shouldAutoPush
+                ? "GitHub-এ auto-save হচ্ছে..."
+                : `এখন "🚀 GitHub-এ Save করো" চেপে save করো।`),
             found > 0 ? "text-green-400" : "text-yellow-400",
+            !shouldAutoPush,
           );
+        }
+
+        if (shouldAutoPush) {
+          try {
+            await pushViewerContent();
+          } catch (err) {
+            showViewerStatus(
+              `❌ Auto-save ব্যর্থ হয়েছে: ${err.message}। ম্যানুয়ালি "🚀 GitHub-এ Save করো" চাপো।`,
+              "text-red-400",
+            );
+          }
         }
       }
 
@@ -1553,6 +1691,97 @@
         }
       }
 
+      // ── Derive a clean, IMDB-search-friendly title from a raw filename-style
+      // entry title, for the "click to copy" feature in the missing-poster
+      // list. Strips site tags, quality/codec/language noise, and cuts off
+      // right before any season/episode marker — but KEEPS a parenthetical
+      // release year like "(2025)". ──
+      function deriveCopyTitle(raw) {
+        let s = raw;
+
+        // Remove a trailing file extension if present
+        s = s.replace(/\.(m3u8?|mkv|mp4|avi|flv|webm)$/i, "");
+
+        // Strip bracketed site/source tags like [Fibwatch.Com], {source} —
+        // anywhere in the string — but keep a bracketed 4-digit year e.g. [2025]
+        s = s.replace(/\[(?!\d{4}\])[^\]]*\]/g, " ");
+        s = s.replace(/\{[^}]*\}/g, " ");
+
+        // Dots/underscores -> spaces
+        s = s.replace(/[._]/g, " ");
+        s = s.replace(/\s+/g, " ").trim();
+
+        // Cut off at season/episode marker, quality, codec, or language noise
+        const cutPatterns = [
+          /\bS\d{1,2}E\d{1,3}\b/i,
+          /\bS\d{1,2}\b/i,
+          /\bE\d{2,3}\b/i,
+          /\b\d{3,4}[pP]\b/,
+          /\b(WEB[-\s]?DL|HDTV|BluRay|BRRip|WEBRip|AMZN|NF|DSNP|HMAX|MX|SonyLIV|Hotstar|ZEE5|ORG)\b/i,
+          /\b(AAC|DDP|AC3|DD\+?\d(\.\d)?|Atmos|x264|x265|HEVC|AVC|H\.?264|H\.?265|Msubs?|MoviesMod)\b/i,
+          /\b(Episode|Ep)\s*\d+\b/i,
+          /\bPart\s*\d+\b/i,
+          /\bVol\.?\s*\d+\b/i,
+          /\bComplete\b/i,
+          /\bDual\b/i,
+          /\bMulti\b/i,
+          /\bAudio\b/i,
+          /\bSeason\s*\d+\b/i,
+        ];
+
+        let cutIndex = s.length;
+        for (const pat of cutPatterns) {
+          const m = s.search(pat);
+          if (m !== -1 && m < cutIndex) cutIndex = m;
+        }
+
+        s = s
+          .substring(0, cutIndex)
+          .replace(/[-.\s]+$/, "")
+          .trim();
+
+        return s || raw;
+      }
+
+      // ── Copy the cleaned title + "imdb" of a missing-poster row to clipboard ──
+      async function copyViewerMissingTitle(idx) {
+        const target = viewerMissingTargets[idx];
+        if (!target) return;
+        const cleanName = deriveCopyTitle(target.title);
+        const copyText = `${cleanName} imdb`;
+
+        try {
+          await navigator.clipboard.writeText(copyText);
+        } catch (err) {
+          // Fallback for contexts where the Clipboard API is blocked
+          const ta = document.createElement("textarea");
+          ta.value = copyText;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          try {
+            document.execCommand("copy");
+          } catch (e) {
+            // ignore
+          }
+          document.body.removeChild(ta);
+        }
+
+        const statusEl = document.getElementById(`viewerMissStatus_${idx}`);
+        if (statusEl) {
+          const prevText = statusEl.textContent;
+          const prevClass = statusEl.className;
+          statusEl.textContent = `📋 Copied: ${copyText}`;
+          statusEl.className =
+            "text-xs text-green-400 whitespace-nowrap font-semibold";
+          setTimeout(() => {
+            statusEl.textContent = prevText;
+            statusEl.className = prevClass;
+          }, 1500);
+        }
+      }
+
       function renderViewerMissingList() {
         const countEl = document.getElementById("viewerMissingCount");
         if (countEl) countEl.textContent = String(viewerMissingTargets.length);
@@ -1573,7 +1802,7 @@
 
           div.innerHTML = `
                     ${logoImg}
-                    <span class="truncate font-medium max-w-xs flex-grow" title="${target.title}">${target.title}</span>
+                    <span onclick="copyViewerMissingTitle(${idx})" class="truncate font-medium max-w-xs flex-grow cursor-pointer hover:text-indigo-300" title="ক্লিক করলে কপি হবে: ${deriveCopyTitle(target.title)} imdb">${target.title}</span>
                     <span id="viewerMissStatus_${idx}" class="text-xs text-gray-400 whitespace-nowrap">${target.logo ? "✅ logo বসেছে" : "— logo নেই"}</span>
                     <button onclick="editViewerMissingLogoManually(${idx})" title="Logo লিংক নিজে দাও" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">✏️</button>
                     <button onclick="setViewerMissingLogoByImdbId(${idx})" title="IMDB Content ID দিয়ে poster আনো (যেমন: tt0800369)" class="text-gray-300 hover:text-white px-1.5 py-0.5 rounded bg-gray-600 hover:bg-gray-500 text-xs flex-shrink-0">🎬</button>
@@ -1612,7 +1841,14 @@
         if (val === null) return;
         const trimmed = val.trim();
         if (!trimmed) return;
-        applyViewerMissingLogo(idx, trimmed);
+
+        // web series হলে একই poster সিরিজের বাকি সব episode-এও বসিয়ে দাও
+        const { key } = getSeriesGroupKey(target.title);
+        viewerMissingTargets.forEach((t, i) => {
+          if (getSeriesGroupKey(t.title).key === key) {
+            applyViewerMissingLogo(i, trimmed);
+          }
+        });
       }
 
       // Option 2: "IMDB/Content ID দাও" — user types an exact IMDB ID
@@ -1647,7 +1883,13 @@
 
         const posterUrl = await fetchOmdbById(imdbId);
         if (posterUrl) {
-          applyViewerMissingLogo(idx, posterUrl);
+          // web series হলে একই poster সিরিজের বাকি সব episode-এও বসিয়ে দাও
+          const { key } = getSeriesGroupKey(target.title);
+          viewerMissingTargets.forEach((t, i) => {
+            if (getSeriesGroupKey(t.title).key === key) {
+              applyViewerMissingLogo(i, posterUrl);
+            }
+          });
         } else {
           if (statusEl) statusEl.textContent = "❌ পোস্টার পাওয়া যায়নি";
           alert(
