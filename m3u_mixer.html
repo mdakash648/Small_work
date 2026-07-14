@@ -721,6 +721,14 @@
                     🧑‍💻 Missing Poster ম্যানুয়ালি যোগ করো
                   </button>
                   <button
+                    onclick="showMovieDeleteManager()"
+                    id="showMovieDeleteBtn"
+                    class="bg-red-700 hover:bg-red-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
+                    title="Group (folder) বা নির্দিষ্ট Movie সিলেক্ট করে ডিলিট করো"
+                  >
+                    🗑️ Movie Delete করো
+                  </button>
+                  <button
                     onclick="openViewerFullscreen()"
                     class="bg-gray-700 hover:bg-gray-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
                     title="Fullscreen"
@@ -788,6 +796,70 @@
                 <div
                   id="viewerMissingList"
                   class="space-y-2 max-h-72 overflow-y-auto pr-2"
+                ></div>
+              </div>
+
+              <!-- Movie Delete Manager (Folder/File style) -->
+              <div
+                id="viewerDeleteSection"
+                class="hidden mb-4 bg-gray-900/70 rounded-xl border border-gray-800 p-3"
+              >
+                <div
+                  class="flex justify-between items-center mb-2 flex-wrap gap-2"
+                >
+                  <h3 class="text-sm font-semibold text-gray-300">
+                    🗂️ Movie Delete Manager —
+                    <span id="deleteSelectedCount" class="text-red-400">0</span>
+                    টি সিলেক্টেড
+                  </h3>
+                  <button
+                    onclick="
+                      document
+                        .getElementById('viewerDeleteSection')
+                        .classList.add('hidden')
+                    "
+                    class="text-gray-400 hover:text-white text-xs"
+                    title="বন্ধ করো"
+                  >
+                    ✖ বন্ধ করো
+                  </button>
+                </div>
+                <p class="text-xs text-gray-500 mb-2">
+                  * 📁 Group/Folder-এর checkbox দিলে ওই group-এর সব movie
+                  সিলেক্ট হয়ে যাবে। Group ডিলিট করলে ভিতরের সব movie সাথে সাথে
+                  ডিলিট হয়ে যাবে। ডিলিটের পর "🚀 GitHub-এ Save করো" চাপলে
+                  GitHub-এ upload হবে।
+                </p>
+                <div class="flex gap-2 flex-wrap mb-2">
+                  <input
+                    type="text"
+                    id="deleteSearchBox"
+                    oninput="renderMovieDeleteTree()"
+                    placeholder="🔍 Group বা Movie নাম দিয়ে খুঁজো..."
+                    class="flex-1 min-w-[160px] bg-gray-800 border border-gray-700 text-white px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                  <button
+                    onclick="deleteSelectAllVisible(true)"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-2.5 py-1 rounded-md text-xs font-semibold transition"
+                  >
+                    ✅ সব সিলেক্ট
+                  </button>
+                  <button
+                    onclick="deleteSelectAllVisible(false)"
+                    class="bg-gray-700 hover:bg-gray-600 text-white px-2.5 py-1 rounded-md text-xs font-semibold transition"
+                  >
+                    ❌ সব বাদ
+                  </button>
+                  <button
+                    onclick="confirmDeleteSelectedMovies()"
+                    class="bg-red-700 hover:bg-red-600 text-white px-2.5 py-1 rounded-md text-xs font-semibold transition"
+                  >
+                    🗑️ সিলেক্টেড ডিলিট করো
+                  </button>
+                </div>
+                <div
+                  id="deleteTreeContainer"
+                  class="space-y-1 max-h-96 overflow-y-auto pr-1"
                 ></div>
               </div>
 
@@ -2483,6 +2555,264 @@
           if (!entry.metadataOnly) prevKey = key;
         });
         return out.join("\n");
+      }
+
+      // ── Movie Delete Manager (Folder/File style) ────────────────
+      // viewerContentBox-এর M3U content-কে group অনুযায়ী "folder" আর
+      // movie-কে ওই folder-এর ভিতরের "file" হিসেবে দেখায়। Folder সিলেক্ট
+      // করলে ভিতরের সব movie সিলেক্ট হয়, folder ডিলিট করলে ভিতরের সব
+      // movie সাথে সাথে ডিলিট হয়ে যায়।
+      let viewerDeleteEntries = []; // [{ entryIndex, group, title, lines, metadataOnly }]
+      let viewerDeleteSelected = new Set(); // Set of selected entryIndex (movie-level)
+      let viewerDeleteExpanded = new Set(); // Set of expanded group keys
+
+      // Extracts the human-readable title from a #EXTINF line the same
+      // way the missing-poster feature does (text after the last comma).
+      function extractEntryTitle(entryLines) {
+        const extLine = (entryLines || []).find((l) =>
+          l.trim().startsWith("#EXTINF:"),
+        );
+        if (!extLine) return "";
+        const commaIndex = extLine.lastIndexOf(",");
+        return commaIndex !== -1
+          ? extLine.substring(commaIndex + 1).trim()
+          : "";
+      }
+
+      function showMovieDeleteManager() {
+        const box = document.getElementById("viewerContentBox");
+        const content = box ? box.value : "";
+        if (!content || !content.trim()) {
+          showViewerStatus(
+            "⚠️ আগে GitHub থেকে কোনো M3U file load করো!",
+            "text-yellow-400",
+          );
+          return;
+        }
+
+        const parsed = parseM3UEntries(content);
+        viewerDeleteEntries = [];
+        let entryIndex = 0;
+        parsed.forEach((entry) => {
+          if (entry.metadataOnly) return; // শুধু standalone comment/metadata লাইন, movie না
+          viewerDeleteEntries.push({
+            entryIndex: entryIndex++,
+            group: entry.group || "(No Group)",
+            title: extractEntryTitle(entry.lines) || "(Untitled)",
+            lines: entry.lines,
+          });
+        });
+
+        viewerDeleteSelected = new Set();
+        // ডিফল্ট ভাবে সব group folder বন্ধ (collapsed) অবস্থায় থাকবে
+        viewerDeleteExpanded = new Set();
+
+        const searchBox = document.getElementById("deleteSearchBox");
+        if (searchBox) searchBox.value = "";
+
+        renderMovieDeleteTree();
+
+        const sectionEl = document.getElementById("viewerDeleteSection");
+        if (sectionEl) sectionEl.classList.remove("hidden");
+
+        if (viewerDeleteEntries.length === 0) {
+          showViewerStatus(
+            "⚠️ এই ফাইলে ডিলিট করার মতো কোনো movie পাওয়া যায়নি।",
+            "text-yellow-400",
+          );
+        }
+      }
+
+      // Groups viewerDeleteEntries by group-title, preserving first-seen order.
+      function buildDeleteGroups(filterText) {
+        const q = (filterText || "").trim().toLowerCase();
+        const groupsMap = new Map(); // key(lowercase) -> { name, items: [] }
+
+        viewerDeleteEntries.forEach((item) => {
+          const groupMatches = item.group.toLowerCase().includes(q);
+          const titleMatches = item.title.toLowerCase().includes(q);
+          if (q && !groupMatches && !titleMatches) return;
+
+          const key = item.group.trim().toLowerCase();
+          if (!groupsMap.has(key)) {
+            groupsMap.set(key, { name: item.group, items: [] });
+          }
+          groupsMap.get(key).items.push(item);
+        });
+
+        return groupsMap;
+      }
+
+      function renderMovieDeleteTree() {
+        const container = document.getElementById("deleteTreeContainer");
+        if (!container) return;
+
+        const searchBox = document.getElementById("deleteSearchBox");
+        const groupsMap = buildDeleteGroups(searchBox ? searchBox.value : "");
+
+        if (groupsMap.size === 0) {
+          container.innerHTML =
+            '<p class="text-xs text-gray-500 text-center py-4">কোনো movie/group পাওয়া যায়নি।</p>';
+          updateDeleteSelectedCount();
+          return;
+        }
+
+        let html = "";
+        groupsMap.forEach((groupData, key) => {
+          const total = groupData.items.length;
+          const selectedInGroup = groupData.items.filter((it) =>
+            viewerDeleteSelected.has(it.entryIndex),
+          ).length;
+          const allSelected = selectedInGroup === total;
+          const someSelected = selectedInGroup > 0 && !allSelected;
+          const isExpanded = viewerDeleteExpanded.has(key);
+
+          html += `
+            <div class="bg-gray-800/60 rounded-lg border border-gray-700 overflow-hidden">
+              <div class="flex items-center gap-2 px-2.5 py-2 hover:bg-gray-800 transition">
+                <input
+                  type="checkbox"
+                  ${allSelected ? "checked" : ""}
+                  onclick="event.stopPropagation(); toggleDeleteGroupSelect('${key}', this.checked)"
+                  class="rounded bg-gray-800 border-gray-600 flex-shrink-0 cursor-pointer"
+                  ${someSelected ? 'data-indeterminate="true"' : ""}
+                />
+                <button
+                  onclick="toggleDeleteGroupExpand('${key}')"
+                  class="flex items-center gap-2 flex-1 min-w-0 text-left"
+                >
+                  <span class="flex-shrink-0">${isExpanded ? "📂" : "📁"}</span>
+                  <span class="text-sm font-medium text-gray-200 truncate">${escapeHtmlText(groupData.name)}</span>
+                  <span class="text-xs text-gray-500 flex-shrink-0">(${total} টি)</span>
+                  <span class="ml-auto text-gray-500 flex-shrink-0">${isExpanded ? "▼" : "▶"}</span>
+                </button>
+              </div>
+              ${
+                isExpanded
+                  ? `<div class="divide-y divide-gray-800/70 border-t border-gray-700 bg-gray-900/40">
+                      ${groupData.items
+                        .map(
+                          (it) => `
+                        <label class="flex items-center gap-2 pl-9 pr-2.5 py-1.5 hover:bg-gray-800/70 cursor-pointer transition">
+                          <input
+                            type="checkbox"
+                            ${viewerDeleteSelected.has(it.entryIndex) ? "checked" : ""}
+                            onchange="toggleDeleteMovieSelect(${it.entryIndex}, this.checked)"
+                            class="rounded bg-gray-800 border-gray-600 flex-shrink-0"
+                          />
+                          <span class="flex-shrink-0">🎬</span>
+                          <span class="text-xs text-gray-300 truncate">${escapeHtmlText(it.title)}</span>
+                        </label>`,
+                        )
+                        .join("")}
+                    </div>`
+                  : ""
+              }
+            </div>`;
+        });
+
+        container.innerHTML = html;
+
+        // Native checkboxes দিয়ে indeterminate state HTML attribute-এ সেট করা যায় না,
+        // তাই render করার পর জাভাস্ক্রিপ্ট দিয়ে বসাতে হয়।
+        container
+          .querySelectorAll('input[data-indeterminate="true"]')
+          .forEach((cb) => {
+            cb.indeterminate = true;
+          });
+
+        updateDeleteSelectedCount();
+      }
+
+      function escapeHtmlText(str) {
+        const div = document.createElement("div");
+        div.textContent = str == null ? "" : str;
+        return div.innerHTML;
+      }
+
+      function toggleDeleteGroupExpand(key) {
+        if (viewerDeleteExpanded.has(key)) {
+          viewerDeleteExpanded.delete(key);
+        } else {
+          viewerDeleteExpanded.add(key);
+        }
+        renderMovieDeleteTree();
+      }
+
+      function toggleDeleteGroupSelect(key, checked) {
+        viewerDeleteEntries.forEach((item) => {
+          if (item.group.trim().toLowerCase() === key) {
+            if (checked) viewerDeleteSelected.add(item.entryIndex);
+            else viewerDeleteSelected.delete(item.entryIndex);
+          }
+        });
+        renderMovieDeleteTree();
+      }
+
+      function toggleDeleteMovieSelect(entryIndex, checked) {
+        if (checked) viewerDeleteSelected.add(entryIndex);
+        else viewerDeleteSelected.delete(entryIndex);
+        renderMovieDeleteTree();
+      }
+
+      function deleteSelectAllVisible(select) {
+        const searchBox = document.getElementById("deleteSearchBox");
+        const groupsMap = buildDeleteGroups(searchBox ? searchBox.value : "");
+        groupsMap.forEach((groupData) => {
+          groupData.items.forEach((it) => {
+            if (select) viewerDeleteSelected.add(it.entryIndex);
+            else viewerDeleteSelected.delete(it.entryIndex);
+          });
+        });
+        renderMovieDeleteTree();
+      }
+
+      function updateDeleteSelectedCount() {
+        const el = document.getElementById("deleteSelectedCount");
+        if (el) el.textContent = String(viewerDeleteSelected.size);
+      }
+
+      function confirmDeleteSelectedMovies() {
+        const count = viewerDeleteSelected.size;
+        if (count === 0) {
+          showViewerStatus(
+            "⚠️ ডিলিটের জন্য কোনো movie/group সিলেক্ট করা হয়নি।",
+            "text-yellow-400",
+          );
+          return;
+        }
+
+        const ok = confirm(
+          `আপনি কি নিশ্চিত ${count} টি movie ডিলিট করতে চান? এই কাজটি undo করা যাবে না (তবে GitHub-এ Save না করা পর্যন্ত ফাইল আপডেট হবে না)।`,
+        );
+        if (!ok) return;
+
+        const box = document.getElementById("viewerContentBox");
+        const content = box ? box.value : "";
+        const parsed = parseM3UEntries(content);
+
+        let entryIndex = 0;
+        const kept = parsed.filter((entry) => {
+          if (entry.metadataOnly) return true; // standalone comment/metadata লাইন রেখে দাও
+          const idx = entryIndex++;
+          return !viewerDeleteSelected.has(idx);
+        });
+
+        const rebuilt =
+          "#EXTM3U\n" + reconstructM3UEntries(kept).trimStart() + "\n";
+        box.value = rebuilt;
+
+        const lines = rebuilt.split("\n").length;
+        const lineCountEl = document.getElementById("viewerLineCount");
+        if (lineCountEl) lineCountEl.textContent = `${lines} লাইন`;
+
+        showViewerStatus(
+          `🗑️ ${count} টি movie ডিলিট হয়েছে। এখন "🚀 GitHub-এ Save করো" চাপো।`,
+          "text-green-400",
+        );
+
+        // Delete manager রিফ্রেশ করো যাতে বাকি থাকা movie/group দেখায়
+        showMovieDeleteManager();
       }
 
       // Merges newContent into existingContent so that every new entry
