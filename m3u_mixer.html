@@ -2772,6 +2772,134 @@
         if (el) el.textContent = String(viewerDeleteSelected.size);
       }
 
+      // ── Delete-safe parser: same traversal as parseM3UEntries, but keeps
+      // each entry's preceding comment/metadata lines ("prefixLines")
+      // SEPARATE from its actual movie lines ("mainLines"). This lets the
+      // delete feature drop only the movie itself while leaving shared
+      // comment blocks (like "# Add : ... / # CONTENT - ...") intact, so
+      // titles of movies that were NOT deleted don't disappear along with
+      // a deleted neighbour's comment block.
+      function parseM3UEntriesWithPrefix(content) {
+        const lines = (content || "").split(/\r?\n/);
+        const entries = [];
+        let pendingPrefix = [];
+        let i = 0;
+        while (i < lines.length) {
+          const line = lines[i];
+          if (line.trim() === "" || line.startsWith("#EXTM3U")) {
+            i++;
+            continue;
+          }
+          if (line.startsWith("#EXTINF")) {
+            const groupMatch = line.match(/group-title="([^"]*)"/i);
+            const group = groupMatch ? groupMatch[1] : "";
+            const mainLines = [line];
+            i++;
+            while (
+              i < lines.length &&
+              lines[i].trim() !== "" &&
+              !lines[i].startsWith("#EXTINF")
+            ) {
+              mainLines.push(lines[i]);
+              i++;
+            }
+            entries.push({
+              group,
+              prefixLines: pendingPrefix,
+              mainLines,
+              metadataOnly: false,
+            });
+            pendingPrefix = [];
+          } else {
+            pendingPrefix.push(line);
+            i++;
+          }
+        }
+        if (pendingPrefix.length > 0) {
+          entries.push({
+            group: "",
+            prefixLines: pendingPrefix,
+            mainLines: [],
+            metadataOnly: true,
+          });
+        }
+        return entries;
+      }
+
+      // Rebuilds text from parseM3UEntriesWithPrefix() output. Comment/prefix
+      // lines are ALWAYS kept (they're shared metadata, not tied to one
+      // movie); only the actual mainLines of deleted movies are dropped.
+      // keptMovieIndexSet = Set of movie-entry indexes (same ordering as
+      // parseM3UEntries) that should be KEPT, i.e. NOT deleted.
+      function reconstructWithPrefix(entries, keptMovieIndexSet) {
+        const out = [];
+        let movieIdx = 0;
+        let prevGroupKey = null;
+        let firstMovieEmitted = false;
+        entries.forEach((entry) => {
+          if (entry.prefixLines && entry.prefixLines.length > 0) {
+            out.push(...entry.prefixLines);
+          }
+          if (entry.metadataOnly) return;
+          const idx = movieIdx++;
+          if (!keptMovieIndexSet.has(idx)) return; // deleted movie — skip its lines
+          const key = entry.group.trim().toLowerCase();
+          if (firstMovieEmitted && key !== prevGroupKey) out.push("");
+          out.push(...entry.mainLines);
+          prevGroupKey = key;
+          firstMovieEmitted = true;
+        });
+        return out.join("\n");
+      }
+
+      // Removes "# CONTENT - <title>" lines that reference a deleted movie's
+      // exact title (from any changelog/comment block anywhere in the file),
+      // then removes any comment block that becomes empty (separator + "# Add"
+      // line with zero remaining "# CONTENT -" lines) as a result.
+      function stripDeletedTitlesFromComments(text, deletedTitles) {
+        if (!deletedTitles || deletedTitles.length === 0) return text;
+        const deletedSet = new Set(
+          deletedTitles.map((t) => (t || "").trim()).filter(Boolean),
+        );
+        if (deletedSet.size === 0) return text;
+
+        const lines = text.split(/\r?\n/);
+        const afterStrip = [];
+        for (const line of lines) {
+          const trimmed = line.trim();
+          const m = trimmed.match(/^#\s*CONTENT\s*-\s*(.+)$/i);
+          if (m && deletedSet.has(m[1].trim())) continue; // remove stale reference
+          afterStrip.push(line);
+        }
+
+        // Clean up now-empty comment blocks: "# ===...", "# Add : ...",
+        // "# ===..." with no "# CONTENT -" lines left in between.
+        const isSep = (l) => /^#\s*=+\s*$/.test((l || "").trim());
+        const isContentLine = (l) => /^#\s*CONTENT\s*-/i.test((l || "").trim());
+
+        const final = [];
+        let i = 0;
+        while (i < afterStrip.length) {
+          if (isSep(afterStrip[i])) {
+            let j = i + 1;
+            let hasContent = false;
+            while (j < afterStrip.length && !isSep(afterStrip[j])) {
+              if (isContentLine(afterStrip[j])) hasContent = true;
+              j++;
+            }
+            if (j < afterStrip.length && isSep(afterStrip[j]) && !hasContent) {
+              // Entire block (both separators + any "# Add" line) is empty now — drop it.
+              i = j + 1;
+              if (i < afterStrip.length && afterStrip[i].trim() === "") i++;
+              continue;
+            }
+          }
+          final.push(afterStrip[i]);
+          i++;
+        }
+        return final.join("\n");
+      }
+
       function confirmDeleteSelectedMovies() {
         const count = viewerDeleteSelected.size;
         if (count === 0) {
@@ -2789,17 +2917,33 @@
 
         const box = document.getElementById("viewerContentBox");
         const content = box ? box.value : "";
-        const parsed = parseM3UEntries(content);
 
-        let entryIndex = 0;
-        const kept = parsed.filter((entry) => {
-          if (entry.metadataOnly) return true; // standalone comment/metadata লাইন রেখে দাও
-          const idx = entryIndex++;
-          return !viewerDeleteSelected.has(idx);
+        // Titles of the movies being deleted, so their stale "# CONTENT - ..."
+        // changelog references can be cleaned up too.
+        const deletedTitles = viewerDeleteEntries
+          .filter((it) => viewerDeleteSelected.has(it.entryIndex))
+          .map((it) => it.title);
+
+        const parsed = parseM3UEntriesWithPrefix(content);
+
+        // Every movie entry NOT selected for deletion should be kept.
+        const keptMovieIndexSet = new Set();
+        let movieIdx = 0;
+        parsed.forEach((entry) => {
+          if (entry.metadataOnly) return;
+          const idx = movieIdx++;
+          if (!viewerDeleteSelected.has(idx)) keptMovieIndexSet.add(idx);
         });
 
-        const rebuilt =
-          "#EXTM3U\n" + reconstructM3UEntries(kept).trimStart() + "\n";
+        let rebuilt =
+          "#EXTM3U\n" +
+          reconstructWithPrefix(parsed, keptMovieIndexSet).trimStart() +
+          "\n";
+
+        // Remove the deleted movies' stale references from comment blocks,
+        // and drop any comment block that's now completely empty.
+        rebuilt = stripDeletedTitlesFromComments(rebuilt, deletedTitles);
+
         box.value = rebuilt;
 
         const lines = rebuilt.split("\n").length;
@@ -2807,7 +2951,7 @@
         if (lineCountEl) lineCountEl.textContent = `${lines} লাইন`;
 
         showViewerStatus(
-          `🗑️ ${count} টি movie ডিলিট হয়েছে। এখন "🚀 GitHub-এ Save করো" চাপো।`,
+          `🗑️ ${count} টি movie ডিলিট হয়েছে (comment-ও পরিষ্কার হয়েছে)। এখন "🚀 GitHub-এ Save করো" চাপো।`,
           "text-green-400",
         );
 
