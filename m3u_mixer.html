@@ -729,6 +729,14 @@
                     🗑️ Movie Delete করো
                   </button>
                   <button
+                    onclick="showMovieEditUrlManager()"
+                    id="showMovieEditUrlBtn"
+                    class="bg-cyan-700 hover:bg-cyan-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
+                    title="নির্দিষ্ট একটা Movie-এর stream URL এডিট করো"
+                  >
+                    ✏️ Movie URL Edit করো
+                  </button>
+                  <button
                     onclick="openViewerFullscreen()"
                     class="bg-gray-700 hover:bg-gray-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
                     title="Fullscreen"
@@ -859,6 +867,48 @@
                 </div>
                 <div
                   id="deleteTreeContainer"
+                  class="space-y-1 max-h-96 overflow-y-auto pr-1"
+                ></div>
+              </div>
+
+              <!-- Movie URL Edit Manager (Folder/File style) -->
+              <div
+                id="viewerEditUrlSection"
+                class="hidden mb-4 bg-gray-900/70 rounded-xl border border-gray-800 p-3"
+              >
+                <div
+                  class="flex justify-between items-center mb-2 flex-wrap gap-2"
+                >
+                  <h3 class="text-sm font-semibold text-gray-300">
+                    ✏️ Movie URL Edit Manager
+                  </h3>
+                  <button
+                    onclick="
+                      document
+                        .getElementById('viewerEditUrlSection')
+                        .classList.add('hidden')
+                    "
+                    class="text-gray-400 hover:text-white text-xs"
+                    title="বন্ধ করো"
+                  >
+                    ✖ বন্ধ করো
+                  </button>
+                </div>
+                <p class="text-xs text-gray-500 mb-2">
+                  * যে movie-এর URL বদলাতে চাও তার পাশের ✏️ Edit বাটনে চাপো —
+                  একটা dialog box খুলবে, সেখানে নতুন URL বসিয়ে "✅ Save করো"
+                  চাপলেই ওই movie-এর stream URL সাথে সাথে আপডেট হয়ে যাবে।
+                  এরপর "🚀 GitHub-এ Save করো" চাপলে GitHub-এ upload হবে।
+                </p>
+                <input
+                  type="text"
+                  id="editUrlSearchBox"
+                  oninput="renderMovieEditUrlTree()"
+                  placeholder="🔍 Group বা Movie নাম দিয়ে খুঁজো..."
+                  class="w-full mb-2 bg-gray-800 border border-gray-700 text-white px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+                <div
+                  id="editUrlTreeContainer"
                   class="space-y-1 max-h-96 overflow-y-auto pr-1"
                 ></div>
               </div>
@@ -1076,6 +1126,63 @@
       <footer class="text-center text-xs text-gray-600 pt-2 pb-6">
         M3U Bulk Group Customizer · সব প্রসেসিং তোমার ব্রাউজারেই হয়
       </footer>
+    </div>
+
+    <!-- Movie URL Edit Dialog -->
+    <div
+      id="editUrlDialogOverlay"
+      class="hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      onclick="if (event.target === this) closeEditUrlDialog()"
+    >
+      <div
+        class="glass-card rounded-2xl border border-gray-800 shadow-xl shadow-black/40 w-full max-w-lg p-5 fade-up"
+      >
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="min-w-0">
+            <h3 class="text-sm font-semibold text-gray-200">
+              ✏️ Movie URL Edit করো
+            </h3>
+            <p
+              id="editUrlDialogTitle"
+              class="text-xs text-cyan-400 truncate mt-0.5"
+            ></p>
+          </div>
+          <button
+            onclick="closeEditUrlDialog()"
+            class="text-gray-400 hover:text-white text-lg leading-none flex-shrink-0"
+            title="বন্ধ করো"
+          >
+            ✖
+          </button>
+        </div>
+        <label class="text-xs text-gray-400 mb-1 block"
+          >নতুন Stream URL:</label
+        >
+        <textarea
+          id="editUrlDialogInput"
+          rows="3"
+          class="w-full bg-gray-800 border border-gray-700 text-white px-3 py-2 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          placeholder="http://..."
+        ></textarea>
+        <p
+          id="editUrlDialogError"
+          class="hidden text-xs text-red-400 mt-1.5"
+        ></p>
+        <div class="flex justify-end gap-2 mt-4">
+          <button
+            onclick="closeEditUrlDialog()"
+            class="bg-gray-700 hover:bg-gray-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition"
+          >
+            বাতিল করো
+          </button>
+          <button
+            onclick="saveEditUrlDialog()"
+            class="bg-cyan-600 hover:bg-cyan-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition"
+          >
+            ✅ Save করো
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Fullscreen Editor Overlay (Monaco / VS Code Editor) -->
@@ -3003,6 +3110,293 @@
         showMovieDeleteManager();
       }
 
+      // ── Movie URL Edit Manager (Folder/File style) ───────────────
+      // viewerContentBox-এর M3U content-কে delete manager-এর মতোই
+      // group(folder)/movie(file) tree হিসেবে দেখায়, কিন্তু checkbox-এর
+      // বদলে প্রতিটা movie-এর পাশে ✏️ Edit বাটন থাকে। বাটনে চাপলে dialog
+      // box খোলে, নতুন URL দিয়ে Save করলে সেই movie-এর stream URL
+      // (মূল #EXTINF/#EXTVLCOPT লাইন ঠিক রেখে) সাথে সাথে আপডেট হয়ে যায়।
+      let viewerEditUrlEntries = []; // [{ entryIndex, group, title, url }]
+      let viewerEditUrlExpanded = new Set(); // Set of expanded group keys
+      let editUrlDialogEntryIndex = null; // entryIndex currently open in the dialog
+
+      // Finds the actual stream-URL line inside a movie's mainLines: the
+      // LAST non-empty line that isn't a "#"-prefixed directive
+      // (#EXTINF, #EXTVLCOPT, #EXTGRP ইত্যাদি বাদ দিয়ে)।
+      function extractEntryUrl(mainLines) {
+        for (let i = (mainLines || []).length - 1; i >= 0; i--) {
+          const l = mainLines[i];
+          if (l != null && l.trim() !== "" && !l.trim().startsWith("#")) {
+            return l.trim();
+          }
+        }
+        return "";
+      }
+
+      function showMovieEditUrlManager() {
+        const box = document.getElementById("viewerContentBox");
+        const content = box ? box.value : "";
+        if (!content || !content.trim()) {
+          showViewerStatus(
+            "⚠️ আগে GitHub থেকে কোনো M3U file load করো!",
+            "text-yellow-400",
+          );
+          return;
+        }
+
+        const parsed = parseM3UEntriesWithPrefix(content);
+        viewerEditUrlEntries = [];
+        let entryIndex = 0;
+        parsed.forEach((entry) => {
+          if (entry.metadataOnly) return; // শুধু standalone comment/metadata লাইন, movie না
+          viewerEditUrlEntries.push({
+            entryIndex: entryIndex++,
+            group: entry.group || "(No Group)",
+            title: extractEntryTitle(entry.mainLines) || "(Untitled)",
+            url: extractEntryUrl(entry.mainLines),
+          });
+        });
+
+        // ডিফল্ট ভাবে সব group folder বন্ধ (collapsed) অবস্থায় থাকবে
+        viewerEditUrlExpanded = new Set();
+
+        const searchBox = document.getElementById("editUrlSearchBox");
+        if (searchBox) searchBox.value = "";
+
+        renderMovieEditUrlTree();
+
+        const sectionEl = document.getElementById("viewerEditUrlSection");
+        if (sectionEl) sectionEl.classList.remove("hidden");
+
+        if (viewerEditUrlEntries.length === 0) {
+          showViewerStatus(
+            "⚠️ এই ফাইলে এডিট করার মতো কোনো movie পাওয়া যায়নি।",
+            "text-yellow-400",
+          );
+        }
+      }
+
+      // Groups viewerEditUrlEntries by group-title, preserving first-seen order.
+      function buildEditUrlGroups(filterText) {
+        const q = (filterText || "").trim().toLowerCase();
+        const groupsMap = new Map(); // key(lowercase) -> { name, items: [] }
+
+        viewerEditUrlEntries.forEach((item) => {
+          const groupMatches = item.group.toLowerCase().includes(q);
+          const titleMatches = item.title.toLowerCase().includes(q);
+          if (q && !groupMatches && !titleMatches) return;
+
+          const key = item.group.trim().toLowerCase();
+          if (!groupsMap.has(key)) {
+            groupsMap.set(key, { name: item.group, items: [] });
+          }
+          groupsMap.get(key).items.push(item);
+        });
+
+        return groupsMap;
+      }
+
+      function renderMovieEditUrlTree() {
+        const container = document.getElementById("editUrlTreeContainer");
+        if (!container) return;
+
+        const searchBox = document.getElementById("editUrlSearchBox");
+        const groupsMap = buildEditUrlGroups(searchBox ? searchBox.value : "");
+
+        if (groupsMap.size === 0) {
+          container.innerHTML =
+            '<p class="text-xs text-gray-500 text-center py-4">কোনো movie/group পাওয়া যায়নি।</p>';
+          return;
+        }
+
+        let html = "";
+        groupsMap.forEach((groupData, key) => {
+          const isExpanded = viewerEditUrlExpanded.has(key);
+
+          html += `
+            <div class="bg-gray-800/60 rounded-lg border border-gray-700 overflow-hidden">
+              <button
+                onclick="toggleEditUrlGroupExpand('${key}')"
+                class="flex items-center gap-2 w-full px-2.5 py-2 hover:bg-gray-800 transition text-left"
+              >
+                <span class="flex-shrink-0">${isExpanded ? "📂" : "📁"}</span>
+                <span class="text-sm font-medium text-gray-200 truncate">${escapeHtmlText(groupData.name)}</span>
+                <span class="text-xs text-gray-500 flex-shrink-0">(${groupData.items.length} টি)</span>
+                <span class="ml-auto text-gray-500 flex-shrink-0">${isExpanded ? "▼" : "▶"}</span>
+              </button>
+              ${
+                isExpanded
+                  ? `<div class="divide-y divide-gray-800/70 border-t border-gray-700 bg-gray-900/40">
+                      ${groupData.items
+                        .map(
+                          (it) => `
+                        <div class="flex items-center gap-2 pl-9 pr-2.5 py-1.5 hover:bg-gray-800/70 transition">
+                          <span class="flex-shrink-0">🎬</span>
+                          <div class="min-w-0 flex-1">
+                            <p class="text-xs text-gray-300 truncate">${escapeHtmlText(it.title)}</p>
+                            <p class="text-[10px] text-gray-500 font-mono truncate">${escapeHtmlText(it.url || "(কোনো URL নেই)")}</p>
+                          </div>
+                          <button
+                            onclick="openEditUrlDialog(${it.entryIndex})"
+                            class="text-gray-100 hover:text-white px-2.5 py-1 rounded-md bg-cyan-700 hover:bg-cyan-600 text-xs font-semibold flex-shrink-0 transition"
+                            title="এই movie-এর URL এডিট করো"
+                          >
+                            ✏️ Edit
+                          </button>
+                        </div>`,
+                        )
+                        .join("")}
+                    </div>`
+                  : ""
+              }
+            </div>`;
+        });
+
+        container.innerHTML = html;
+      }
+
+      function toggleEditUrlGroupExpand(key) {
+        if (viewerEditUrlExpanded.has(key)) {
+          viewerEditUrlExpanded.delete(key);
+        } else {
+          viewerEditUrlExpanded.add(key);
+        }
+        renderMovieEditUrlTree();
+      }
+
+      // Opens the URL-entry dialog box for one specific movie, pre-filled
+      // with its current stream URL.
+      function openEditUrlDialog(entryIndex) {
+        const item = viewerEditUrlEntries.find(
+          (it) => it.entryIndex === entryIndex,
+        );
+        if (!item) return;
+        editUrlDialogEntryIndex = entryIndex;
+
+        const titleEl = document.getElementById("editUrlDialogTitle");
+        if (titleEl) titleEl.textContent = `"${item.title}" — ${item.group}`;
+
+        const input = document.getElementById("editUrlDialogInput");
+        input.value = item.url || "";
+
+        const errEl = document.getElementById("editUrlDialogError");
+        errEl.classList.add("hidden");
+        errEl.textContent = "";
+
+        document
+          .getElementById("editUrlDialogOverlay")
+          .classList.remove("hidden");
+        setTimeout(() => {
+          input.focus();
+          input.select();
+        }, 30);
+      }
+
+      function closeEditUrlDialog() {
+        document.getElementById("editUrlDialogOverlay").classList.add("hidden");
+        editUrlDialogEntryIndex = null;
+      }
+
+      // Validates the dialog's input and, if OK, writes the new URL
+      // straight into viewerContentBox for that one movie.
+      function saveEditUrlDialog() {
+        if (editUrlDialogEntryIndex === null) return;
+
+        const input = document.getElementById("editUrlDialogInput");
+        const errEl = document.getElementById("editUrlDialogError");
+        const newUrl = (input.value || "").trim();
+
+        if (!newUrl) {
+          errEl.textContent = "⚠️ URL খালি রাখা যাবে না।";
+          errEl.classList.remove("hidden");
+          return;
+        }
+        if (!/^https?:\/\//i.test(newUrl)) {
+          errEl.textContent =
+            '⚠️ URL অবশ্যই "http://" অথবা "https://" দিয়ে শুরু হতে হবে।';
+          errEl.classList.remove("hidden");
+          return;
+        }
+
+        const applied = updateMovieUrlInContent(
+          editUrlDialogEntryIndex,
+          newUrl,
+        );
+        if (!applied) {
+          errEl.textContent = "❌ আপডেট করা গেলো না — movie খুঁজে পাওয়া যায়নি।";
+          errEl.classList.remove("hidden");
+          return;
+        }
+
+        const savedTitle =
+          viewerEditUrlEntries.find(
+            (it) => it.entryIndex === editUrlDialogEntryIndex,
+          )?.title || "";
+
+        closeEditUrlDialog();
+        showMovieEditUrlManager(); // তালিকা রিফ্রেশ করো যাতে নতুন URL দেখা যায়
+
+        showViewerStatus(
+          `✅ "${savedTitle}"-এর URL আপডেট হয়েছে। এখন "🚀 GitHub-এ Save করো" চাপো।`,
+          "text-green-400",
+        );
+      }
+
+      // Replaces the stream-URL line of ONE movie (identified by its
+      // movie-entry index, same ordering as parseM3UEntriesWithPrefix)
+      // directly inside viewerContentBox — every other line (including
+      // #EXTINF metadata, #EXTVLCOPT lines, comments, other movies)
+      // stays exactly as-is.
+      function updateMovieUrlInContent(entryIndex, newUrl) {
+        const box = document.getElementById("viewerContentBox");
+        const content = box ? box.value : "";
+        const parsed = parseM3UEntriesWithPrefix(content);
+
+        let movieIdx = 0;
+        let found = false;
+        parsed.forEach((entry) => {
+          if (entry.metadataOnly) return;
+          const idx = movieIdx++;
+          if (idx !== entryIndex) return;
+          found = true;
+
+          let replaced = false;
+          for (let i = entry.mainLines.length - 1; i >= 0; i--) {
+            const l = entry.mainLines[i];
+            if (l != null && l.trim() !== "" && !l.trim().startsWith("#")) {
+              entry.mainLines[i] = newUrl;
+              replaced = true;
+              break;
+            }
+          }
+          // যদি কোনো কারণে URL লাইন খুঁজে না পাওয়া যায় (bad entry),
+          // তাহলে নতুন লাইন হিসেবে শেষে যোগ করো যাতে data হারিয়ে না যায়।
+          if (!replaced) entry.mainLines.push(newUrl);
+        });
+
+        if (!found) return false;
+
+        // সব movie রাখা হবে — এখানে শুধু URL replace হচ্ছে, delete না।
+        const keptMovieIndexSet = new Set();
+        let mi = 0;
+        parsed.forEach((entry) => {
+          if (entry.metadataOnly) return;
+          keptMovieIndexSet.add(mi++);
+        });
+
+        const rebuilt =
+          "#EXTM3U\n" +
+          reconstructWithPrefix(parsed, keptMovieIndexSet).trimStart() +
+          "\n";
+        box.value = rebuilt;
+
+        const lines = rebuilt.split("\n").length;
+        const lineCountEl = document.getElementById("viewerLineCount");
+        if (lineCountEl) lineCountEl.textContent = `${lines} লাইন`;
+
+        return true;
+      }
+
       // Merges newContent into existingContent so that every new entry
       // lands right after the LAST existing entry that shares the same
       // group-title. Entries whose group doesn't exist yet in the
@@ -4024,6 +4418,24 @@
           );
           if (findWidget) return; // Monaco নিজে হ্যান্ডেল করবে
           closeViewerFullscreen();
+        }
+      });
+
+      // ESC key দিয়ে URL Edit dialog বন্ধ করা যায়, আর dialog-এর ভিতরে
+      // থাকা অবস্থায় Ctrl/Cmd+Enter চাপলে সরাসরি Save হয়ে যায়।
+      document.addEventListener("keydown", (e) => {
+        const overlay = document.getElementById("editUrlDialogOverlay");
+        if (!overlay || overlay.classList.contains("hidden")) return;
+
+        if (e.key === "Escape") {
+          closeEditUrlDialog();
+        } else if (
+          (e.ctrlKey || e.metaKey) &&
+          e.key === "Enter" &&
+          document.activeElement === document.getElementById("editUrlDialogInput")
+        ) {
+          e.preventDefault();
+          saveEditUrlDialog();
         }
       });
 
