@@ -9,7 +9,7 @@
     />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <!-- APP_VERSION: 2026-07-12-001 -->
+    <!-- APP_VERSION: 2026-07-15-001 -->
     <title>M3U Playlist Bulk Group Customizer</title>
 
     <!-- Fonts: Hind Siliguri (Bangla UI text) + Inter (Latin/UI) + JetBrains Mono (code/M3U content) -->
@@ -1200,7 +1200,7 @@
       // নতুন ভার্সন সার্ভারে আপলোড করার সময় <head> এর
       // <!-- APP_VERSION: ... --> কমেন্টের ভ্যালুটা বদলে দিলেই
       // ব্রাউজারে খোলা থাকা পুরনো পেজগুলো অটো নতুন ভার্সনের নোটিফিকেশন দেখাবে।
-      const CURRENT_APP_VERSION = "2026-07-12-001";
+      const CURRENT_APP_VERSION = "2026-07-15-001";
       const UPDATE_CHECK_INTERVAL_MS = 3 * 60 * 1000; // প্রতি ৩ মিনিটে চেক
 
       function hardReload() {
@@ -2837,12 +2837,30 @@
         let prevGroupKey = null;
         let firstMovieEmitted = false;
         entries.forEach((entry) => {
+          // Peek at whether THIS entry survives before deciding what to do
+          // with its prefixLines (needed below to drop orphaned
+          // auto_search_update lines when their whole group is deleted).
+          let willKeep = true;
+          const idxForThis = entry.metadataOnly ? null : movieIdx;
+          if (!entry.metadataOnly) willKeep = keptMovieIndexSet.has(idxForThis);
+
           if (entry.prefixLines && entry.prefixLines.length > 0) {
-            out.push(...entry.prefixLines);
+            // "auto_search_update:" lines are tied 1:1 to the single movie
+            // entry that follows them (used for that group's next-episode
+            // lookup) — unlike changelog blocks they are NOT shared metadata,
+            // so if that entry gets deleted, drop the now-stale line too.
+            // Any other prefix content (changelog "# ===.../# Add/# CONTENT")
+            // is always kept, same as before.
+            const isAutoSearchOnly = entry.prefixLines.every((l) =>
+              /^auto_search_update\s*:/i.test((l || "").trim()),
+            );
+            if (!(isAutoSearchOnly && !willKeep)) {
+              out.push(...entry.prefixLines);
+            }
           }
           if (entry.metadataOnly) return;
-          const idx = movieIdx++;
-          if (!keptMovieIndexSet.has(idx)) return; // deleted movie — skip its lines
+          movieIdx++;
+          if (!willKeep) return; // deleted movie — skip its lines
           const key = entry.group.trim().toLowerCase();
           if (firstMovieEmitted && key !== prevGroupKey) out.push("");
           out.push(...entry.mainLines);
@@ -2876,6 +2894,20 @@
         // "# ===..." with no "# CONTENT -" lines left in between.
         const isSep = (l) => /^#\s*=+\s*$/.test((l || "").trim());
         const isContentLine = (l) => /^#\s*CONTENT\s*-/i.test((l || "").trim());
+        const isAddLine = (l) => /^#\s*Add\s*:/i.test((l || "").trim());
+        // A line that can legitimately appear INSIDE a self-contained
+        // changelog block: another separator, an "# Add :" header, a
+        // "# CONTENT -" line, or a blank line. Anything else (an #EXTINF,
+        // #EXTVLCOPT, stream URL, etc.) means we've walked OUT of the
+        // block into real playlist content, so the "==" line we started
+        // from is NOT paired with the next "==" we happen to find later —
+        // there can be many separate changelog blocks scattered between
+        // movie groups throughout the file.
+        const isBlockLine = (l) =>
+          (l || "").trim() === "" ||
+          isSep(l) ||
+          isAddLine(l) ||
+          isContentLine(l);
 
         const final = [];
         let i = 0;
@@ -2883,11 +2915,23 @@
           if (isSep(afterStrip[i])) {
             let j = i + 1;
             let hasContent = false;
+            let stillInsideBlock = true;
             while (j < afterStrip.length && !isSep(afterStrip[j])) {
               if (isContentLine(afterStrip[j])) hasContent = true;
+              if (!isBlockLine(afterStrip[j])) {
+                // Hit real playlist content before a matching closing
+                // separator — this isn't a self-contained empty block.
+                stillInsideBlock = false;
+                break;
+              }
               j++;
             }
-            if (j < afterStrip.length && isSep(afterStrip[j]) && !hasContent) {
+            if (
+              stillInsideBlock &&
+              j < afterStrip.length &&
+              isSep(afterStrip[j]) &&
+              !hasContent
+            ) {
               // Entire block (both separators + any "# Add" line) is empty now — drop it.
               i = j + 1;
               if (i < afterStrip.length && afterStrip[i].trim() === "") i++;
