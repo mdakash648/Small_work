@@ -702,7 +702,7 @@
                     class="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
                     title="যেসব entry-তে এখনো tvg-logo নেই, শুধু সেগুলোর জন্য IMDB থেকে poster খুঁজে এই box-এ বসিয়ে দেবে। তারপর 'GitHub-এ Save করো' চাপলে আপলোড হবে।"
                   >
-                    🖼️ Missing Poster যোগ করো
+                    🖼️ Missing Poster Auto যোগ করো
                   </button>
                   <button
                     onclick="stopMissingPosterFetch()"
@@ -732,7 +732,7 @@
                     onclick="showMovieEditUrlManager()"
                     id="showMovieEditUrlBtn"
                     class="bg-cyan-700 hover:bg-cyan-600 text-white px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition"
-                    title="নির্দিষ্ট একটা Movie-এর stream URL এডিট করো"
+                    title="নির্দিষ্ট একটা Movie-এর stream URL আর http-referrer এডিট করো"
                   >
                     ✏️ Movie URL Edit করো
                   </button>
@@ -896,9 +896,10 @@
                 </div>
                 <p class="text-xs text-gray-500 mb-2">
                   * যে movie-এর URL বদলাতে চাও তার পাশের ✏️ Edit বাটনে চাপো —
-                  একটা dialog box খুলবে, সেখানে নতুন URL বসিয়ে "✅ Save করো"
-                  চাপলেই ওই movie-এর stream URL সাথে সাথে আপডেট হয়ে যাবে।
-                  এরপর "🚀 GitHub-এ Save করো" চাপলে GitHub-এ upload হবে।
+                  একটা dialog box খুলবে, সেখানে নতুন URL (আর চাইলে
+                  http-referrer) বসিয়ে "✅ Save করো" চাপলেই ওই movie-এর stream
+                  URL ও referrer সাথে সাথে আপডেট হয়ে যাবে। এরপর "🚀 GitHub-এ
+                  Save করো" চাপলে GitHub-এ upload হবে।
                 </p>
                 <input
                   type="text"
@@ -1132,7 +1133,7 @@
     <div
       id="editUrlDialogOverlay"
       class="hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-      onclick="if (event.target === this) closeEditUrlDialog()"
+      onclick="if (event.target === this) closeEditUrlDialog();"
     >
       <div
         class="glass-card rounded-2xl border border-gray-800 shadow-xl shadow-black/40 w-full max-w-lg p-5 fade-up"
@@ -1155,14 +1156,24 @@
             ✖
           </button>
         </div>
-        <label class="text-xs text-gray-400 mb-1 block"
-          >নতুন Stream URL:</label
-        >
+        <label class="text-xs text-gray-400 mb-1 block">নতুন Stream URL:</label>
         <textarea
           id="editUrlDialogInput"
           rows="3"
           class="w-full bg-gray-800 border border-gray-700 text-white px-3 py-2 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
           placeholder="http://..."
+        ></textarea>
+        <label class="text-xs text-gray-400 mb-1 mt-3 block"
+          >http-referrer
+          <span class="text-gray-600 font-normal"
+            >(ফাঁকা রাখলে referrer লাইন মুছে যাবে)</span
+          >:</label
+        >
+        <textarea
+          id="editUrlDialogReferrerInput"
+          rows="2"
+          class="w-full bg-gray-800 border border-gray-700 text-white px-3 py-2 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          placeholder="https://example.com/"
         ></textarea>
         <p
           id="editUrlDialogError"
@@ -3114,9 +3125,10 @@
       // viewerContentBox-এর M3U content-কে delete manager-এর মতোই
       // group(folder)/movie(file) tree হিসেবে দেখায়, কিন্তু checkbox-এর
       // বদলে প্রতিটা movie-এর পাশে ✏️ Edit বাটন থাকে। বাটনে চাপলে dialog
-      // box খোলে, নতুন URL দিয়ে Save করলে সেই movie-এর stream URL
-      // (মূল #EXTINF/#EXTVLCOPT লাইন ঠিক রেখে) সাথে সাথে আপডেট হয়ে যায়।
-      let viewerEditUrlEntries = []; // [{ entryIndex, group, title, url }]
+      // box খোলে, নতুন URL আর http-referrer দিয়ে Save করলে সেই movie-এর
+      // stream URL ও "#EXTVLCOPT:http-referrer=..." লাইন (মূল #EXTINF/অন্য
+      // #EXTVLCOPT লাইন ঠিক রেখে) সাথে সাথে আপডেট হয়ে যায়।
+      let viewerEditUrlEntries = []; // [{ entryIndex, group, title, url, referrer }]
       let viewerEditUrlExpanded = new Set(); // Set of expanded group keys
       let editUrlDialogEntryIndex = null; // entryIndex currently open in the dialog
 
@@ -3129,6 +3141,18 @@
           if (l != null && l.trim() !== "" && !l.trim().startsWith("#")) {
             return l.trim();
           }
+        }
+        return "";
+      }
+
+      // Finds the http-referrer value from a movie's mainLines, i.e. the
+      // "#EXTVLCOPT:http-referrer=..." লাইন থেকে referrer URL-টা বের করে।
+      function extractEntryReferrer(mainLines) {
+        for (const l of mainLines || []) {
+          const m = (l || "")
+            .trim()
+            .match(/^#EXTVLCOPT:\s*http-referrer\s*=\s*(.*)$/i);
+          if (m) return m[1].trim();
         }
         return "";
       }
@@ -3154,6 +3178,7 @@
             group: entry.group || "(No Group)",
             title: extractEntryTitle(entry.mainLines) || "(Untitled)",
             url: extractEntryUrl(entry.mainLines),
+            referrer: extractEntryReferrer(entry.mainLines),
           });
         });
 
@@ -3235,6 +3260,7 @@
                           <div class="min-w-0 flex-1">
                             <p class="text-xs text-gray-300 truncate">${escapeHtmlText(it.title)}</p>
                             <p class="text-[10px] text-gray-500 font-mono truncate">${escapeHtmlText(it.url || "(কোনো URL নেই)")}</p>
+                            ${it.referrer ? `<p class="text-[10px] text-amber-500/80 font-mono truncate">↩ referrer: ${escapeHtmlText(it.referrer)}</p>` : ""}
                           </div>
                           <button
                             onclick="openEditUrlDialog(${it.entryIndex})"
@@ -3279,6 +3305,9 @@
         const input = document.getElementById("editUrlDialogInput");
         input.value = item.url || "";
 
+        const refInput = document.getElementById("editUrlDialogReferrerInput");
+        if (refInput) refInput.value = item.referrer || "";
+
         const errEl = document.getElementById("editUrlDialogError");
         errEl.classList.add("hidden");
         errEl.textContent = "";
@@ -3298,13 +3327,15 @@
       }
 
       // Validates the dialog's input and, if OK, writes the new URL
-      // straight into viewerContentBox for that one movie.
+      // (আর http-referrer) straight into viewerContentBox for that one movie.
       function saveEditUrlDialog() {
         if (editUrlDialogEntryIndex === null) return;
 
         const input = document.getElementById("editUrlDialogInput");
+        const refInput = document.getElementById("editUrlDialogReferrerInput");
         const errEl = document.getElementById("editUrlDialogError");
         const newUrl = (input.value || "").trim();
+        const newReferrer = refInput ? (refInput.value || "").trim() : "";
 
         if (!newUrl) {
           errEl.textContent = "⚠️ URL খালি রাখা যাবে না।";
@@ -3317,13 +3348,21 @@
           errEl.classList.remove("hidden");
           return;
         }
+        if (newReferrer && !/^https?:\/\//i.test(newReferrer)) {
+          errEl.textContent =
+            '⚠️ http-referrer অবশ্যই "http://" অথবা "https://" দিয়ে শুরু হতে হবে (অথবা ফাঁকা রাখো)।';
+          errEl.classList.remove("hidden");
+          return;
+        }
 
         const applied = updateMovieUrlInContent(
           editUrlDialogEntryIndex,
           newUrl,
+          newReferrer,
         );
         if (!applied) {
-          errEl.textContent = "❌ আপডেট করা গেলো না — movie খুঁজে পাওয়া যায়নি।";
+          errEl.textContent =
+            "❌ আপডেট করা গেলো না — movie খুঁজে পাওয়া যায়নি।";
           errEl.classList.remove("hidden");
           return;
         }
@@ -3342,15 +3381,20 @@
         );
       }
 
-      // Replaces the stream-URL line of ONE movie (identified by its
-      // movie-entry index, same ordering as parseM3UEntriesWithPrefix)
-      // directly inside viewerContentBox — every other line (including
-      // #EXTINF metadata, #EXTVLCOPT lines, comments, other movies)
-      // stays exactly as-is.
-      function updateMovieUrlInContent(entryIndex, newUrl) {
+      // Replaces the stream-URL line (আর ঐচ্ছিক http-referrer লাইন) of ONE
+      // movie (identified by its movie-entry index, same ordering as
+      // parseM3UEntriesWithPrefix) directly inside viewerContentBox — every
+      // other line (including #EXTINF metadata, অন্যান্য #EXTVLCOPT lines,
+      // comments, other movies) stays exactly as-is.
+      // newReferrer: non-empty হলে "#EXTVLCOPT:http-referrer=..." লাইন
+      // add/update হবে, ফাঁকা ("") হলে আগের referrer লাইন মুছে যাবে।
+      function updateMovieUrlInContent(entryIndex, newUrl, newReferrer) {
         const box = document.getElementById("viewerContentBox");
         const content = box ? box.value : "";
         const parsed = parseM3UEntriesWithPrefix(content);
+
+        const isReferrerLine = (l) =>
+          /^#EXTVLCOPT:\s*http-referrer\s*=/i.test((l || "").trim());
 
         let movieIdx = 0;
         let found = false;
@@ -3361,17 +3405,39 @@
           found = true;
 
           let replaced = false;
+          let urlLineIdx = -1;
           for (let i = entry.mainLines.length - 1; i >= 0; i--) {
             const l = entry.mainLines[i];
             if (l != null && l.trim() !== "" && !l.trim().startsWith("#")) {
               entry.mainLines[i] = newUrl;
               replaced = true;
+              urlLineIdx = i;
               break;
             }
           }
           // যদি কোনো কারণে URL লাইন খুঁজে না পাওয়া যায় (bad entry),
           // তাহলে নতুন লাইন হিসেবে শেষে যোগ করো যাতে data হারিয়ে না যায়।
-          if (!replaced) entry.mainLines.push(newUrl);
+          if (!replaced) {
+            entry.mainLines.push(newUrl);
+            urlLineIdx = entry.mainLines.length - 1;
+          }
+
+          // ── http-referrer হ্যান্ডলিং ──
+          const refLineIdx = entry.mainLines.findIndex(isReferrerLine);
+          const trimmedRef = (newReferrer || "").trim();
+          if (trimmedRef) {
+            const refLine = `#EXTVLCOPT:http-referrer=${trimmedRef}`;
+            if (refLineIdx !== -1) {
+              // আগের referrer লাইন replace করো (জায়গা ঠিক রেখে)
+              entry.mainLines[refLineIdx] = refLine;
+            } else {
+              // referrer লাইন নেই — URL লাইনের ঠিক আগে বসাও
+              entry.mainLines.splice(urlLineIdx, 0, refLine);
+            }
+          } else if (refLineIdx !== -1) {
+            // ফাঁকা দেওয়া হয়েছে — আগের referrer লাইন মুছে দাও
+            entry.mainLines.splice(refLineIdx, 1);
+          }
         });
 
         if (!found) return false;
@@ -4432,7 +4498,8 @@
         } else if (
           (e.ctrlKey || e.metaKey) &&
           e.key === "Enter" &&
-          document.activeElement === document.getElementById("editUrlDialogInput")
+          document.activeElement ===
+            document.getElementById("editUrlDialogInput")
         ) {
           e.preventDefault();
           saveEditUrlDialog();
